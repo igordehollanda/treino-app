@@ -211,35 +211,53 @@ Volte ao **SQL Editor**, nova query. Copie o bloco abaixo, **troque os
 tres e-mails e os tres nomes** e rode:
 
 ```sql
-insert into perfis (id, nome, papel, cor) values
-  ((select id from auth.users where email = 'SEU-EMAIL@EXEMPLO.COM'),
-   'Igor',     'aluno',    '#2563eb'),
-  ((select id from auth.users where email = 'EMAIL-DA-SUA-ESPOSA@EXEMPLO.COM'),
-   'NOME DELA','aluno',    '#db2777'),
-  ((select id from auth.users where email = 'EMAIL-DO-PERSONAL@EXEMPLO.COM'),
-   'NOME DELE','personal', '#16a34a');
+insert into perfis (id, nome, papel, cor)
+select u.id, d.nome, d.papel::papel_usuario, d.cor
+from (values
+  ('SEU-EMAIL@EXEMPLO.COM',            'Seu nome',      'aluno',    '#2563eb'),
+  ('EMAIL-DA-SUA-ESPOSA@EXEMPLO.COM',  'Nome dela',     'aluno',    '#db2777'),
+  ('EMAIL-DO-PERSONAL@EXEMPLO.COM',    'Nome dele',     'personal', '#16a34a')
+) as d(email, nome, papel, cor)
+join auth.users u on u.email = d.email
+on conflict (id) do update
+  set nome = excluded.nome, papel = excluded.papel, cor = excluded.cor;
 ```
 
-O `select` de dentro busca o UUID pelo e-mail, entao voce nao precisa
-copiar identificador nenhum a mao.
+O `join` busca o UUID pelo e-mail, entao voce nao copia identificador
+nenhum a mao. E a consulta e **idempotente**: pode rodar quantas vezes
+quiser: quem ja existe tem nome/papel/cor atualizados, sem duplicar.
 
-✅ Resultado esperado: **Success. No rows returned**
+⚠️ **Ela ignora em silencio quem nao existe em `auth.users`.** Isso e
+proposital — assim faltar uma pessoa nao impede as outras duas de
+entrarem. Por isso a conferencia abaixo nao e opcional.
 
-❌ Se aparecer `null value in column "id" violates not-null constraint`,
-um dos e-mails esta escrito diferente do que foi cadastrado na Etapa 4.
-Confira com:
+### Conferir (obrigatorio)
 
 ```sql
-select email, created_at from auth.users order by created_at;
+select u.email, p.nome, p.papel,
+       u.email_confirmed_at is not null as confirmado
+from perfis p join auth.users u on u.id = p.id
+order by p.papel, p.nome;
 ```
 
-### Conferir
+Voce precisa ver **tres linhas**, duas `aluno` e uma `personal`, todas
+com `confirmado = true`.
+
+**Vieram menos de tres linhas?** Alguem nao foi criado na Etapa 4, ou o
+e-mail esta escrito diferente. Veja o que existe de verdade:
 
 ```sql
-select nome, papel, cor from perfis order by papel, nome;
+select email, created_at, email_confirmed_at is not null as confirmado
+from auth.users order by created_at;
 ```
 
-Devem aparecer **tres linhas**: dois `aluno` e um `personal`.
+Compare caractere por caractere com os e-mails do `insert` — um ponto ou
+um sublinhado a mais ja quebra a correspondencia. Corrija e rode o
+`insert` de novo.
+
+**Alguem com `confirmado = false`?** Faltou marcar *Auto Confirm User*.
+Apague o usuario em **Authentication → Users** e recrie com a opcao
+marcada.
 
 ### Trocar um nome depois
 
