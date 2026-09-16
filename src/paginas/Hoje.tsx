@@ -9,7 +9,7 @@ import {
 import type { SemanaCiclo, Sessao, TreinoCompleto } from '../lib/tipos'
 
 export default function Hoje() {
-  const { perfil, ehPersonal, sair } = useAuth()
+  const { perfil, ehPersonal } = useAuth()
   const navegar = useNavigate()
   const [treinos, setTreinos] = useState<TreinoCompleto[]>(treinosEmCache())
   const [sessoes, setSessoes] = useState<Sessao[]>([])
@@ -72,8 +72,11 @@ export default function Hoje() {
           <p className="text-sm text-slate-400">{saudacao()},</p>
           <h1 className="text-2xl font-bold">{perfil?.nome}</h1>
         </div>
-        <button onClick={() => void sair()} className="mt-1 text-xs text-slate-500">
-          sair
+        <button
+          onClick={() => navegar('/conta')}
+          className="mt-1 text-xs text-slate-500 underline"
+        >
+          conta
         </button>
       </header>
 

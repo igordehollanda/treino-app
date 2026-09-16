@@ -8,6 +8,7 @@ import Execucao from './paginas/Execucao'
 import Treinos from './paginas/Treinos'
 import EditorTreino from './paginas/EditorTreino'
 import Historico from './paginas/Historico'
+import Conta from './paginas/Conta'
 
 export default function App() {
   const { sessao, perfil, carregando } = useAuth()
@@ -62,6 +63,7 @@ export default function App() {
         <Route path="/treinos" element={<Treinos />} />
         <Route path="/treinos/:treinoId" element={<EditorTreino />} />
         <Route path="/historico" element={<Historico />} />
+        <Route path="/conta" element={<Conta />} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>

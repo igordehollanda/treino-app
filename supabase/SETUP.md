@@ -356,25 +356,65 @@ conta.
 
 ---
 
-## Etapa 8 — O limite de e-mails (leia antes de reclamar)
+## Etapa 8 — E-mail e senha
 
-O serviço de e-mail embutido do Supabase e **fortemente limitado** no
-plano Free — na ordem de **poucos e-mails por hora** para todo o
-projeto, somando os tres.
+### O limite de e-mails do plano gratuito
 
-Na pratica isso quase nunca incomoda, porque o login **fica salvo no
-celular** e voce so pede link novo se sair ou trocar de aparelho. Mas
-**no dia da configuracao**, testando os tres logins seguidos, da para
-esbarrar no limite e receber `email rate limit exceeded`.
+O servico de e-mail embutido do Supabase e **fortemente limitado**: poucas
+mensagens por hora, somando as tres pessoas. Estourado o limite, o pedido
+de link magico volta com **HTTP 429** e ninguem entra — inclusive na
+academia, que e a pior hora possivel.
 
-Duas saidas:
+Por isso o app entra por **senha por padrao**, e o link por e-mail e a
+alternativa. Senha nao depende de e-mail chegar.
 
-- **Esperar uma hora** e continuar. Serve perfeitamente para o setup.
-- **Configurar um SMTP proprio**, se quiser eliminar o limite:
-  **Project Settings → Authentication → SMTP Settings**. Resend e Brevo
-  tem plano gratuito suficiente. Nao e necessario para o app funcionar.
+### Definir a senha de cada um
 
----
+Logado no app: **Hoje → conta → Definir uma senha**.
+
+Se ninguem consegue entrar para chegar la (limite estourado e sem senha
+ainda), defina a primeira senha pelo **SQL Editor**:
+
+```sql
+create extension if not exists pgcrypto with schema extensions;
+
+update auth.users
+set encrypted_password = extensions.crypt('SENHA-PROVISORIA', extensions.gen_salt('bf')),
+    updated_at = now()
+where email = 'EMAIL-DA-PESSOA@EXEMPLO.COM';
+```
+
+E acao de administrador do proprio projeto, valida mas com dois cuidados:
+a senha fica no historico do SQL Editor, e ela nao deve ser a definitiva.
+**Troque por outra no app**, em conta → Definir uma senha, assim que
+entrar.
+
+### SMTP proprio: tirar o limite de vez
+
+Opcional, mas resolve o link magico para sempre.
+**Project Settings → Authentication → SMTP Settings**.
+
+**Resend** (resend.com) — exige um **dominio verificado**. Sem dominio,
+a conta gratuita so envia para o e-mail do proprio titular, o que nao
+serve para tres pessoas. Com dominio: adicione em *Domains*, publique os
+registros DNS que ele pedir, gere uma **API key** e preencha:
+
+| Campo | Valor |
+|---|---|
+| Host | `smtp.resend.com` |
+| Port | `465` |
+| Username | `resend` |
+| Password | a API key gerada |
+| Sender email | `treino@seu-dominio` (do dominio verificado) |
+| Sender name | `Treino` |
+
+**Brevo** (brevo.com) — alternativa quando **nao ha dominio**: ele
+verifica um **endereco de e-mail avulso**, por confirmacao no proprio
+e-mail. Plano gratuito de 300 mensagens por dia. As credenciais SMTP
+ficam em *SMTP & API → SMTP*.
+
+Depois de configurar, mande um link magico para si mesmo e confira nos
+**Logs → Auth Logs** que o `POST /auth/v1/otp` responde **200**, e nao 429.
 
 ## Etapa 9 — Montar o primeiro treino
 
@@ -471,7 +511,8 @@ salvo — nao precisa pedir link toda vez.
 | Tela "Falta conectar o Supabase" | `.env` ausente ou nao recarregado | Confira o arquivo e reinicie o `npm run dev` |
 | "Esta conta nao tem acesso" | usuario existe, perfil nao | Refaca a Etapa 5 |
 | "Nao consegui enviar" no login | e-mail fora dos tres cadastrados | Confira a Etapa 4 |
-| `email rate limit exceeded` | limite do plano Free | Espere 1h ou configure SMTP (Etapa 8) |
+| `429` / limite de e-mails | envio do plano Free esgotado | Entre com senha; para resolver de vez, SMTP proprio (Etapa 8) |
+| "E-mail ou senha incorretos" | senha nao definida ou errada | Defina pelo SQL da Etapa 8 e troque no app |
 | Link do e-mail cai em `localhost` | falta a URL da Vercel | Etapa 10.2 |
 | Treino nao aparece para o aluno | treino sem aluno atribuido | Editor do treino → **Quem faz este treino** |
 | Exercicio some para um dos dois | marcado como "So [outra pessoa]" | Editor → **Para quem** → **Ambos** |
