@@ -14,6 +14,10 @@ export default function Historico() {
   const [exercicios, setExercicios] = useState<Exercicio[]>([])
   const [exercicioId, setExercicioId] = useState('')
   const [progressao, setProgressao] = useState<PontoProgressao[]>([])
+  const [mes, setMes] = useState(() => {
+    const d = new Date()
+    return new Date(d.getFullYear(), d.getMonth(), 1)
+  })
 
   useEffect(() => {
     void buscarPerfis().then(setPerfis).catch(console.error)
@@ -22,7 +26,9 @@ export default function Historico() {
 
   useEffect(() => {
     if (!vendo) return
-    void buscarSessoes(vendo, new Date(Date.now() - 180 * 864e5))
+    // Um ano inteiro de uma vez: sao tres pessoas, o volume e minusculo,
+    // e assim navegar entre meses nao vai a rede.
+    void buscarSessoes(vendo, new Date(Date.now() - 400 * 864e5))
       .then(setSessoes)
       .catch(console.error)
   }, [vendo])
@@ -36,7 +42,6 @@ export default function Historico() {
   }, [vendo, exercicioId])
 
   const alunos = perfis.filter((p) => p.papel === 'aluno')
-  const porMes = useMemo(() => agrupaPorMes(sessoes), [sessoes])
   const sequencia = useMemo(() => calculaSequencia(sessoes), [sessoes])
 
   return (
@@ -59,32 +64,20 @@ export default function Historico() {
         </div>
       )}
 
-      {sessoes.length === 0 ? (
-        <div className="rounded-2xl border border-borda bg-superficie p-6 text-center">
-          <p className="font-medium text-texto">Nenhum treino registrado ainda.</p>
-          <p className="mt-1 text-sm text-fraco">
-            Assim que você finalizar o primeiro, aparecem aqui a frequência do mês, a
-            sequência de semanas e a evolução de carga de cada exercício.
-          </p>
-        </div>
-      ) : (
-      <>
       <div className="mb-5 grid grid-cols-3 gap-3">
-        <Numero rotulo="este mês" valor={contaNoMes(sessoes, new Date())} />
+        <Numero rotulo={mesCurto(mes)} valor={contaNoMes(sessoes, mes)} />
         <Numero rotulo="sequência" valor={sequencia} sufixo="sem" />
         <Numero rotulo="total" valor={sessoes.length} />
       </div>
 
       <section className="mb-6 rounded-2xl border border-borda bg-superficie p-4">
-        <h2 className="rotulo mb-3">Frequência</h2>
-        <div className="flex flex-col gap-4">
-          {porMes.slice(0, 3).map(([mes, dias]) => (
-            <Mes key={mes} mes={mes} dias={dias} />
-          ))}
-          {porMes.length === 0 && (
-            <p className="text-sm text-fraco">Nenhum treino registrado ainda.</p>
-          )}
-        </div>
+        <Calendario
+          mes={mes}
+          sessoes={sessoes}
+          aoMudarMes={(delta) =>
+            setMes((m) => new Date(m.getFullYear(), m.getMonth() + delta, 1))
+          }
+        />
       </section>
 
       <section className="rounded-2xl border border-borda bg-superficie p-4">
@@ -105,7 +98,12 @@ export default function Historico() {
         )}
         {progressao.length > 0 && <GraficoCarga pontos={progressao} />}
       </section>
-      </>
+
+      {sessoes.length === 0 && (
+        <p className="mt-4 text-center text-sm text-fraco">
+          Nenhum treino registrado ainda. Assim que você finalizar o primeiro, os dias
+          acendem no calendário com a letra do treino.
+        </p>
       )}
     </div>
   )
@@ -123,44 +121,114 @@ function Numero({ rotulo, valor, sufixo }: { rotulo: string; valor: number; sufi
   )
 }
 
-/** Calendario do mes: cada dia treinado acende. */
-function Mes({ mes, dias }: { mes: string; dias: Set<number> }) {
-  const [ano, m] = mes.split('-').map(Number)
-  const totalDias = new Date(ano, m, 0).getDate()
-  const primeiroDiaSemana = new Date(ano, m - 1, 1).getDay()
+/**
+ * Um mes por vez, com o numero certo de dias e a letra do treino
+ * concluido em cada um. Mes a mes, nao "ultimos 30 dias": e assim que
+ * se enxerga constancia.
+ */
+function Calendario({
+  mes, sessoes, aoMudarMes,
+}: {
+  mes: Date
+  sessoes: Sessao[]
+  aoMudarMes: (delta: number) => void
+}) {
+  const ano = mes.getFullYear()
+  const m = mes.getMonth()
+  const diasNoMes = new Date(ano, m + 1, 0).getDate()
+  // Semana comecando na segunda, como o plano de treino.
+  const deslocamento = (new Date(ano, m, 1).getDay() + 6) % 7
+
+  // Um dia pode ter mais de uma sessao; guarda a letra da primeira.
+  const doDia = new Map<number, string>()
+  for (const s of sessoes) {
+    const d = new Date(s.iniciada_em)
+    if (d.getFullYear() === ano && d.getMonth() === m) {
+      if (!doDia.has(d.getDate())) doDia.set(d.getDate(), s.treino_nome.trim()[0] ?? '✓')
+    }
+  }
+
+  const hoje = new Date()
+  const ehMesAtual = hoje.getFullYear() === ano && hoje.getMonth() === m
+  const futuro = new Date(ano, m, 1) > hoje
 
   return (
     <div>
-      <p className="mb-2 text-xs font-medium uppercase tracking-wide text-fraco">
-        {new Date(ano, m - 1, 1).toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })}
-        <span className="ml-2 text-suave">{dias.size} treinos</span>
-      </p>
-      <div className="grid grid-cols-7 gap-1">
-        {Array.from({ length: primeiroDiaSemana }, (_, i) => <div key={`v${i}`} />)}
-        {Array.from({ length: totalDias }, (_, i) => i + 1).map((d) => (
-          <div
-            key={d}
-            className={`flex aspect-square items-center justify-center rounded-md text-[11px] ${
-              dias.has(d) ? 'bg-feito font-semibold text-fundo' : 'bg-elevado text-fraco/70'
-            }`}
-          >
+      <div className="mb-3 flex items-center justify-between">
+        <button
+          onClick={() => aoMudarMes(-1)}
+          aria-label="Mês anterior"
+          className="h-9 w-9 rounded-lg text-suave active:bg-elevado"
+        >
+          ‹
+        </button>
+        <div className="text-center">
+          <p className="text-sm font-bold">{mesPorExtenso(mes)}</p>
+          <p className="rotulo mt-0.5">
+            {doDia.size} treino{doDia.size === 1 ? '' : 's'}
+          </p>
+        </div>
+        <button
+          onClick={() => aoMudarMes(1)}
+          disabled={futuro}
+          aria-label="Próximo mês"
+          className="h-9 w-9 rounded-lg text-suave active:bg-elevado disabled:opacity-30"
+        >
+          ›
+        </button>
+      </div>
+
+      <div className="mb-1 grid grid-cols-7 gap-1">
+        {['seg', 'ter', 'qua', 'qui', 'sex', 'sáb', 'dom'].map((d) => (
+          <span key={d} className="text-center text-[10px] font-semibold uppercase text-fraco">
             {d}
-          </div>
+          </span>
         ))}
+      </div>
+
+      <div className="grid grid-cols-7 gap-1">
+        {Array.from({ length: deslocamento }, (_, i) => <div key={`v${i}`} />)}
+        {Array.from({ length: diasNoMes }, (_, i) => i + 1).map((dia) => {
+          const letra = doDia.get(dia)
+          const ehHoje = ehMesAtual && hoje.getDate() === dia
+          return (
+            <div
+              key={dia}
+              className={`flex aspect-square flex-col items-center justify-center rounded-lg ${
+                letra
+                  ? 'bg-feito text-fundo'
+                  : ehHoje
+                    ? 'border-2 border-acento'
+                    : 'bg-elevado/40'
+              }`}
+            >
+              <span
+                className={`text-[10px] leading-none ${
+                  letra ? 'font-semibold opacity-70' : 'text-fraco'
+                }`}
+              >
+                {dia}
+              </span>
+              {letra && <span className="text-sm font-extrabold leading-tight">{letra}</span>}
+            </div>
+          )
+        })}
       </div>
     </div>
   )
 }
 
-function agrupaPorMes(sessoes: Sessao[]) {
-  const mapa = new Map<string, Set<number>>()
-  for (const s of sessoes) {
-    const d = new Date(s.iniciada_em)
-    const chave = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
-    if (!mapa.has(chave)) mapa.set(chave, new Set())
-    mapa.get(chave)!.add(d.getDate())
-  }
-  return [...mapa.entries()].sort((a, b) => b[0].localeCompare(a[0]))
+/** "Setembro de 2026" — so a primeira letra sobe; `capitalize` do CSS
+ *  subiria tambem o "de". */
+function mesPorExtenso(d: Date) {
+  const t = d.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })
+  return t.charAt(0).toUpperCase() + t.slice(1)
+}
+
+/** "set/26" para o rotulo do contador. */
+function mesCurto(d: Date) {
+  const m = d.toLocaleDateString('pt-BR', { month: 'short' }).replace('.', '')
+  return `${m}/${String(d.getFullYear()).slice(2)}`
 }
 
 function contaNoMes(sessoes: Sessao[], ref: Date) {

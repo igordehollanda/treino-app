@@ -3,16 +3,17 @@ import { useNavigate, useParams } from 'react-router-dom'
 import { useAuth } from '../lib/auth'
 import { supabase } from '../lib/supabase'
 import {
-  apagarSerie, buscarProgressao, buscarSemanaAtual, buscarSeriesDaSessao, buscarTreinos,
-  buscarUltimasCargas, cargasEmCache, finalizarSessao, registrarSerie, semanaEmCache,
-  sessaoLocal, treinosEmCache,
+  apagarSerie, buscarExercicios, buscarProgressao, buscarSemanaAtual, buscarSeriesDaSessao,
+  buscarTreinos, buscarUltimasCargas, cargasEmCache, criarExercicio, finalizarSessao,
+  registrarSerie, semanaEmCache, sessaoLocal, treinosEmCache,
 } from '../lib/db'
 import { repsDoDia } from '../lib/periodizacao'
 import { linkDeExecucao } from '../lib/execucao'
 import GraficoCarga from '../componentes/GraficoCarga'
+import SeletorExercicio from '../componentes/SeletorExercicio'
 import type {
-  PontoProgressao, SemanaCiclo, Sessao, SerieRegistro, TreinoCompleto, TreinoExercicio,
-  UltimaCarga,
+  Exercicio, PontoProgressao, SemanaCiclo, Sessao, SerieRegistro, TreinoCompleto,
+  TreinoExercicio, UltimaCarga,
 } from '../lib/tipos'
 
 type Marcada = { carga: string; reps: string; rir: number | null; feita: boolean }
@@ -21,6 +22,16 @@ const chave = (nome: string, serie: number) => `${nome}::${serie}`
 
 /** Exercicio solo ou um bi-set: a tela trata os dois pelo mesmo caminho. */
 type Bloco = { id: string; biset: boolean; itens: TreinoExercicio[] }
+
+/**
+ * Troca de exercicio vale SO nesta sessao.
+ *
+ * A maquina estava ocupada, o ombro reclamou — voce troca e segue. A
+ * prescricao do personal nao muda, e o historico grava o que foi de fato
+ * executado, porque cada serie ja guarda o nome e o id do exercicio.
+ */
+type Troca = { id: string; nome: string; video_url: string | null }
+const chaveTrocas = (sessaoId: string) => `treino:trocas:${sessaoId}`
 
 export default function Execucao() {
   const { sessaoId } = useParams()
@@ -37,6 +48,9 @@ export default function Execucao() {
   const [descanso, setDescanso] = useState<number | null>(null)
   const [reabertos, setReabertos] = useState<Set<string>>(new Set())
   const [painel, setPainel] = useState<string | null>(null)
+  const [trocas, setTrocas] = useState<Record<string, Troca>>({})
+  const [trocando, setTrocando] = useState<TreinoExercicio | null>(null)
+  const [catalogo, setCatalogo] = useState<Exercicio[]>([])
   const [finalizando, setFinalizando] = useState(false)
   const refs = useRef<Record<string, HTMLElement | null>>({})
 
@@ -57,6 +71,12 @@ export default function Execucao() {
     void buscarSeriesDaSessao(sessaoId)
       .then((series) => setMarcadas(reidratar(series)))
       .catch(console.error)
+
+    try {
+      setTrocas(JSON.parse(localStorage.getItem(chaveTrocas(sessaoId)) ?? '{}'))
+    } catch {
+      setTrocas({})
+    }
   }, [sessaoId, perfil])
 
   // 2. Com a sessao em maos, acha o treino dela.
@@ -84,6 +104,36 @@ export default function Execucao() {
     return () => clearTimeout(t)
   }, [descanso])
 
+  /** O exercicio que vale nesta sessao para este item do treino. */
+  const resolver = useCallback(
+    (item: TreinoExercicio) =>
+      trocas[item.id] ?? {
+        id: item.exercicio_id,
+        nome: item.exercicios?.nome ?? 'Exercício',
+        video_url: item.exercicios?.video_url ?? null,
+      },
+    [trocas],
+  )
+
+  const aplicarTroca = useCallback(
+    (item: TreinoExercicio, novo: Troca | null) => {
+      if (!sessaoId) return
+      setTrocas((t) => {
+        const proximo = { ...t }
+        if (novo) proximo[item.id] = novo
+        else delete proximo[item.id]
+        try {
+          localStorage.setItem(chaveTrocas(sessaoId), JSON.stringify(proximo))
+        } catch {
+          /* cota cheia: a troca vale so nesta tela */
+        }
+        return proximo
+      })
+      setTrocando(null)
+    },
+    [sessaoId],
+  )
+
   const meusItens = useMemo(
     () => (treino?.itens ?? []).filter((i) => i.perfil_id === null || i.perfil_id === perfil?.id),
     [treino, perfil],
@@ -97,10 +147,10 @@ export default function Execucao() {
     (bloco: Bloco) =>
       bloco.itens.every((item) =>
         Array.from({ length: item.series }, (_, i) => i + 1).every(
-          (n) => marcadas[chave(nomeDe(item), n)]?.feita,
+          (n) => marcadas[chave(resolver(item).nome, n)]?.feita,
         ),
       ),
-    [marcadas],
+    [marcadas, resolver],
   )
 
   /**
@@ -124,11 +174,12 @@ export default function Execucao() {
   const gravar = useCallback(
     async (item: TreinoExercicio, serie: number, m: Marcada) => {
       if (!perfil || !sessaoId) return
+      const atual = resolver(item)
       await registrarSerie({
         sessao_id: sessaoId,
         perfil_id: perfil.id,
-        exercicio_id: item.exercicio_id,
-        exercicio_nome: nomeDe(item),
+        exercicio_id: atual.id,
+        exercicio_nome: atual.nome,
         serie,
         carga_kg: m.carga === '' ? null : Number(m.carga.replace(',', '.')),
         reps: m.reps === '' ? null : Number(m.reps),
@@ -136,7 +187,7 @@ export default function Execucao() {
         registrada_em: new Date().toISOString(),
       })
     },
-    [perfil, sessaoId],
+    [perfil, sessaoId, resolver],
   )
 
   const alternar = useCallback(
@@ -147,7 +198,7 @@ export default function Execucao() {
       ctx: { descanso: number | null; avancarDe: Bloco | null },
     ) => {
       if (!sessaoId) return
-      const nome = nomeDe(item)
+      const nome = resolver(item).nome
       const k = chave(nome, serie)
       const atual = marcadas[k]
 
@@ -169,19 +220,19 @@ export default function Execucao() {
       if (ctx.avancarDe) irParaProximo(ctx.avancarDe)
       await gravar(item, serie, nova)
     },
-    [marcadas, sessaoId, gravar, irParaProximo],
+    [marcadas, sessaoId, gravar, irParaProximo, resolver],
   )
 
   /** RIR pode ser marcado antes ou depois do ✓; se ja registrou, regrava. */
   const definirRir = useCallback(
     async (item: TreinoExercicio, serie: number, rir: number | null) => {
-      const k = chave(nomeDe(item), serie)
+      const k = chave(resolver(item).nome, serie)
       const atual = marcadas[k] ?? vazia
       const nova = { ...atual, rir: atual.rir === rir ? null : rir }
       setMarcadas((m) => ({ ...m, [k]: nova }))
       if (nova.feita) await gravar(item, serie, nova)
     },
-    [marcadas, gravar],
+    [marcadas, gravar, resolver],
   )
 
   async function terminar() {
@@ -233,6 +284,15 @@ export default function Execucao() {
             }}
             bloco={bloco}
             semana={semana}
+            resolver={resolver}
+            aoTrocar={(item) => {
+              setTrocando(item)
+              if (catalogo.length === 0) {
+                void buscarExercicios().then(setCatalogo).catch(console.error)
+              }
+            }}
+            aoDesfazerTroca={(item) => aplicarTroca(item, null)}
+            trocados={trocas}
             cargas={cargas}
             marcadas={marcadas}
             perfilId={perfil?.id ?? ''}
@@ -265,6 +325,22 @@ export default function Execucao() {
         </button>
       </div>
 
+      {trocando && (
+        <SeletorExercicio
+          exercicios={catalogo}
+          aoFechar={() => setTrocando(null)}
+          aoEscolher={async (id) => {
+            const e = catalogo.find((x) => x.id === id)
+            if (e) aplicarTroca(trocando, { id: e.id, nome: e.nome, video_url: e.video_url })
+          }}
+          aoCriar={async (nome, grupo) => {
+            const novo = await criarExercicio(nome, grupo)
+            setCatalogo((xs) => [...xs, novo])
+            return novo.id
+          }}
+        />
+      )}
+
       {descanso !== null && (
         <BarraDescanso
           segundos={descanso}
@@ -281,11 +357,16 @@ type Contexto = { descanso: number | null; avancar: boolean }
 
 function CartaoBloco({
   ref, bloco, semana, cargas, marcadas, perfilId, concluido, reaberto, painel,
+  resolver, trocados, aoTrocar, aoDesfazerTroca,
   aoAbrirPainel, aoReabrir, aoAlterar, aoDefinirRir, aoAlternar,
 }: {
   ref?: React.Ref<HTMLElement>
   bloco: Bloco
   semana: SemanaCiclo | null
+  resolver: (i: TreinoExercicio) => Troca
+  trocados: Record<string, Troca>
+  aoTrocar: (i: TreinoExercicio) => void
+  aoDesfazerTroca: (i: TreinoExercicio) => void
   cargas: Record<string, UltimaCarga>
   marcadas: Record<string, Marcada>
   perfilId: string
@@ -318,10 +399,13 @@ function CartaoBloco({
           </span>
           <span className="min-w-0 flex-1">
             <span className="block truncate text-sm font-medium text-texto">
-              {bloco.itens.map(nomeDe).join(' + ')}
+              {bloco.itens.map((i) => resolver(i).nome).join(' + ')}
             </span>
             <span className="text-xs text-fraco">
-              {bloco.itens.map((i) => resumo(i, marcadas)).filter(Boolean).join(' · ')}
+              {bloco.itens
+                .map((i) => resumo(i, marcadas, resolver(i).nome))
+                .filter(Boolean)
+                .join(' · ')}
             </span>
           </span>
           <span className="shrink-0 text-xs text-fraco/70">editar</span>
@@ -344,15 +428,18 @@ function CartaoBloco({
       {bloco.itens.map((item) => (
         <div key={item.id} className={bloco.biset ? 'mb-1' : ''}>
           <button
-            onClick={() =>
-              setProgressaoDe((a) => (a === item.exercicio_id ? null : item.exercicio_id))
-            }
+            onClick={() => setProgressaoDe((a) => (a === item.id ? null : item.id))}
             className="flex w-full items-baseline justify-between gap-2 text-left"
           >
             <span className="min-w-0">
-              <span className="font-semibold leading-tight">{nomeDe(item)}</span>
+              <span className="font-semibold leading-tight">{resolver(item).nome}</span>
+              {trocados[item.id] && (
+                <span className="ml-1.5 rounded-full bg-alerta/15 px-1.5 py-0.5 text-[10px] font-semibold text-alerta">
+                  trocado
+                </span>
+              )}
               <span className="ml-1.5 text-xs text-fraco/70">
-                {progressaoDe === item.exercicio_id ? '▴' : '▾'}
+                {progressaoDe === item.id ? '▴' : '▾'}
               </span>
             </span>
             <span className="shrink-0 text-sm text-suave">
@@ -361,17 +448,39 @@ function CartaoBloco({
             </span>
           </button>
 
-          {progressaoDe === item.exercicio_id && (
+          {progressaoDe === item.id && (
             <>
-              <ProgressaoInline perfilId={perfilId} exercicioId={item.exercicio_id} />
-              <a
-                href={linkDeExecucao(nomeDe(item), item.exercicios?.video_url ?? null)}
-                target="_blank"
-                rel="noreferrer"
-                className="mt-2 flex items-center justify-center gap-2 rounded-xl border border-borda py-2.5 text-sm font-medium text-suave active:bg-elevado"
-              >
-                ▶ ver execução
-              </a>
+              <ProgressaoInline perfilId={perfilId} exercicioId={resolver(item).id} />
+              <div className="mt-2 grid grid-cols-2 gap-2">
+                <a
+                  href={linkDeExecucao(resolver(item).nome, resolver(item).video_url)}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="flex items-center justify-center rounded-xl border border-borda py-2.5 text-sm font-medium text-suave active:bg-elevado"
+                >
+                  ▶ ver execução
+                </a>
+                {trocados[item.id] ? (
+                  <button
+                    onClick={() => aoDesfazerTroca(item)}
+                    className="rounded-xl border border-alerta/40 py-2.5 text-sm font-medium text-alerta active:bg-elevado"
+                  >
+                    voltar ao original
+                  </button>
+                ) : (
+                  <button
+                    onClick={() => aoTrocar(item)}
+                    className="rounded-xl border border-borda py-2.5 text-sm font-medium text-suave active:bg-elevado"
+                  >
+                    trocar exercício
+                  </button>
+                )}
+              </div>
+              {trocados[item.id] && (
+                <p className="mt-2 text-xs text-fraco">
+                  Troca válida só neste treino de hoje. A prescrição não muda.
+                </p>
+              )}
             </>
           )}
 
@@ -391,7 +500,7 @@ function CartaoBloco({
 
       {(() => {
         const item = bloco.itens[0]
-        const u = cargas[item.exercicio_id]
+        const u = cargas[resolver(item).id]
         return !bloco.biset && u ? (
           <p className="mt-1 text-xs text-fraco">
             última vez: {u.carga_kg}kg{u.reps ? ` × ${u.reps}` : ''} ·{' '}
@@ -411,16 +520,17 @@ function CartaoBloco({
               {participantes.map((item, j) => {
                 const ultimo = j === participantes.length - 1
                 const alvoReps = repsDoDia(item, semana)
-                const u = cargas[item.exercicio_id]
+                const atual = resolver(item)
+                const u = cargas[atual.id]
                 const padroes: Padroes = {
                   carga: u?.carga_kg != null ? String(u.carga_kg) : '',
                   reps: primeiroNumero(alvoReps),
                 }
-                const k = chave(nomeDe(item), serie)
+                const k = chave(atual.nome, serie)
                 return (
                   <LinhaSerie
                     key={item.id}
-                    rotulo={bloco.biset ? nomeCurto(nomeDe(item)) : String(serie)}
+                    rotulo={bloco.biset ? nomeCurto(atual.nome) : String(serie)}
                     compacto={bloco.biset}
                     marcada={marcadas[k] ?? vazia}
                     padroes={padroes}
@@ -686,7 +796,6 @@ function BarraDescanso({
 
 // --- helpers ---------------------------------------------------------
 
-const nomeDe = (item: TreinoExercicio) => item.exercicios?.nome ?? 'Exercício'
 
 /** "Tríceps testa unilateral na polia" -> "Tríceps testa…" na linha do bi-set. */
 function nomeCurto(nome: string) {
@@ -720,9 +829,9 @@ function agrupar(itens: TreinoExercicio[]): Bloco[] {
 }
 
 /** "3 séries · 8 reps · 32kg" — o que foi registrado, nao o prescrito. */
-function resumo(item: TreinoExercicio, marcadas: Record<string, Marcada>) {
+function resumo(item: TreinoExercicio, marcadas: Record<string, Marcada>, nome: string) {
   const feitas = Array.from({ length: item.series }, (_, i) => i + 1)
-    .map((n) => marcadas[chave(nomeDe(item), n)])
+    .map((n) => marcadas[chave(nome, n)])
     .filter((m): m is Marcada => Boolean(m?.feita))
   if (feitas.length === 0) return ''
 
