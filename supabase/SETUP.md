@@ -15,18 +15,39 @@ copiar e colar.
 ## Etapa 1 — Criar o projeto
 
 1. Entre em <https://supabase.com/dashboard> com a sua conta.
-2. Clique em **New project**.
-3. Preencha:
+
+2. **Crie uma organizacao pessoal antes**, se voce so tem a do
+   escritorio (`Tizei, Mendonca Advogados Associados`).
+
+   No seletor de organizacao, no alto da tela: **New organization** →
+   nome `Pessoal - Igor` → plano **Free**. Leva segundos e nao custa
+   nada.
+
+   **Por que isso importa.** Projeto separado resolve o banco: nenhuma
+   consulta do app alcanca dado de cliente. Mas a *organizacao* e outra
+   camada — quem tem acesso a ela abre o projeto pelo painel e le as
+   tabelas pelo SQL Editor. A RLS protege contra a chave publica do app,
+   nao contra quem entra como dono. Alem disso, a cobranca segue a
+   organizacao.
+
+   Os dados aqui nao sao so seus: sao os da sua esposa e os do seu
+   personal. Se voce e o unico membro da organizacao do escritorio, o
+   risco pratico e zero e isto e so arrumacao. Se houver socio, contador
+   ou TI, nao coloque o app la.
+
+3. Clique em **New project**.
+
+4. Preencha:
 
    | Campo | O que por |
    |---|---|
-   | **Organization** | a sua organizacao pessoal |
+   | **Organization** | `Pessoal - Igor` (nao a do escritorio) |
    | **Project name** | `APP - TREINOS` |
    | **Database Password** | clique em *Generate a password* e **salve no seu gerenciador de senhas** |
    | **Region** | `South America (São Paulo)` |
    | **Pricing Plan** | `Free` |
 
-4. Clique em **Create new project**.
+5. Clique em **Create new project**.
 
 **Sobre a senha do banco:** o app nao usa ela. Ela serve para conectar
 direto no Postgres (psql, DBeaver, backup). Salve mesmo assim — o
@@ -371,6 +392,7 @@ salvo — nao precisa pedir link toda vez.
 
 ## Checklist final
 
+- [ ] Organizacao pessoal criada (nao a do escritorio)
 - [ ] Projeto `APP - TREINOS` criado, separado do CRM
 - [ ] As 3 migrations rodaram sem erro
 - [ ] 7 tabelas, todas com politica de RLS
