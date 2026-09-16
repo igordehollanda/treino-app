@@ -24,7 +24,7 @@ export default function Layout() {
         <div className="sticky top-0 z-10 bg-amber-500/90 px-4 py-1.5 text-center text-xs font-medium text-amber-950">
           {online
             ? `Sincronizando ${naFila} registro${naFila > 1 ? 's' : ''}...`
-            : 'Sem conexao - seus registros estao salvos e sobem depois'}
+            : 'Sem conexão — seus registros estão salvos e sobem depois'}
         </div>
       )}
 
@@ -36,7 +36,7 @@ export default function Layout() {
       >
         <Aba para="/" rotulo="Hoje" />
         <Aba para="/treinos" rotulo="Treinos" />
-        <Aba para="/historico" rotulo="Historico" />
+        <Aba para="/historico" rotulo="Histórico" />
       </nav>
     </div>
   )

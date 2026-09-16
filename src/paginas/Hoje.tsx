@@ -54,6 +54,11 @@ export default function Hoje() {
     )[0]
   }, [meusTreinos, sessoes])
 
+  // Com uma sessao em andamento, nada disputa atencao com ela: todos os
+  // treinos viram linha.
+  const principal = aberta ? null : sugerido
+  const resto = meusTreinos.filter((t) => t.id !== principal?.id)
+
   async function comecar(treino: TreinoCompleto) {
     if (!perfil) return
     const nova = await iniciarSessao(perfil.id, treino.id, treino.nome)
@@ -89,65 +94,106 @@ export default function Hoje() {
 
       {meusTreinos.length === 0 ? (
         <p className="rounded-2xl border border-borda bg-cartao p-6 text-center text-sm text-slate-400">
-          Nenhum treino atribuido ainda.
+          Nenhum treino atribuído ainda.
           {ehPersonal ? ' Monte o primeiro na aba Treinos.' : ' Fale com o personal.'}
         </p>
       ) : (
-        <div className="flex flex-col gap-3">
-          {meusTreinos.map((t) => (
-            <CartaoTreino
-              key={t.id}
-              treino={t}
+        <>
+          {principal && (
+            <CartaoPrincipal
+              treino={principal}
               perfilId={perfil?.id ?? ''}
-              sugerido={t.id === sugerido?.id && !aberta}
-              ultima={sessoes.find((s) => s.treino_id === t.id)}
-              aoComecar={() => void comecar(t)}
+              ultima={sessoes.find((s) => s.treino_id === principal.id)}
+              aoComecar={() => void comecar(principal)}
             />
-          ))}
-        </div>
+          )}
+          <div className="flex flex-col gap-2">
+            {resto.map((t) => (
+              <LinhaTreino
+                key={t.id}
+                treino={t}
+                perfilId={perfil?.id ?? ''}
+                ultima={sessoes.find((s) => s.treino_id === t.id)}
+                aoComecar={() => void comecar(t)}
+              />
+            ))}
+          </div>
+        </>
       )}
     </div>
   )
 }
 
-function CartaoTreino({
-  treino, perfilId, sugerido, ultima, aoComecar,
+/**
+ * Quanto custa este treino: numero de exercicios, series e uma estimativa
+ * de duracao (45s por serie + o descanso prescrito). Ajuda a decidir se
+ * da tempo antes de sair de casa.
+ */
+function custo(treino: TreinoCompleto, perfilId: string) {
+  const meus = treino.itens.filter((i) => i.perfil_id === null || i.perfil_id === perfilId)
+  const series = meus.reduce((n, i) => n + i.series, 0)
+  const minutos = Math.round(
+    meus.reduce((s, i) => s + i.series * (45 + i.descanso_seg), 0) / 60,
+  )
+  return { exercicios: meus.length, series, minutos }
+}
+
+/** O treino da vez. Unico com botao grande — um alvo obvio por tela. */
+function CartaoPrincipal({
+  treino, perfilId, ultima, aoComecar,
 }: {
   treino: TreinoCompleto
   perfilId: string
-  sugerido: boolean
   ultima?: Sessao
   aoComecar: () => void
 }) {
-  // Conta so o que e seu: compartilhado + a sua variacao.
-  const meus = treino.itens.filter((i) => i.perfil_id === null || i.perfil_id === perfilId)
+  const c = custo(treino, perfilId)
   return (
-    <div
-      className={`rounded-2xl border bg-cartao p-4 ${
-        sugerido ? 'border-blue-500' : 'border-borda'
-      }`}
-    >
-      <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0">
-          <h2 className="truncate text-lg font-semibold">{treino.nome}</h2>
-          <p className="text-sm text-slate-400">
-            {meus.length} exercicio{meus.length === 1 ? '' : 's'}
-            {ultima && ` · ultima vez ${diasAtras(ultima.iniciada_em)}`}
-          </p>
-        </div>
-        {sugerido && (
-          <span className="shrink-0 rounded-full bg-blue-500/15 px-2.5 py-1 text-xs font-medium text-blue-400">
-            sugerido
-          </span>
-        )}
-      </div>
+    <div className="mb-3 rounded-2xl border border-blue-500/60 bg-cartao p-4">
+      <p className="text-xs font-medium uppercase tracking-wide text-blue-400">
+        Próximo treino
+      </p>
+      <h2 className="mt-1 text-xl font-bold leading-tight">{treino.nome}</h2>
+      <p className="mt-1 text-sm text-slate-400">
+        {c.exercicios} exercícios · {c.series} séries · ~{c.minutos} min
+      </p>
+      {ultima && (
+        <p className="text-sm text-slate-500">última vez {diasAtras(ultima.iniciada_em)}</p>
+      )}
       <button
         onClick={aoComecar}
-        className="mt-3 w-full rounded-xl bg-blue-600 py-3 font-semibold active:bg-blue-700"
+        className="mt-3 w-full rounded-xl bg-blue-600 py-4 text-base font-semibold active:bg-blue-700"
       >
         Iniciar
       </button>
     </div>
+  )
+}
+
+/** Os outros treinos: a linha inteira e o botao. */
+function LinhaTreino({
+  treino, perfilId, ultima, aoComecar,
+}: {
+  treino: TreinoCompleto
+  perfilId: string
+  ultima?: Sessao
+  aoComecar: () => void
+}) {
+  const c = custo(treino, perfilId)
+  return (
+    <button
+      onClick={aoComecar}
+      className="flex w-full items-center gap-3 rounded-xl border border-borda bg-cartao px-4 py-3 text-left active:bg-slate-800"
+    >
+      <span className="min-w-0 flex-1">
+        <span className="block truncate font-medium">{treino.nome}</span>
+        <span className="text-xs text-slate-500">
+          {c.exercicios} ex · {c.series} séries · ~{c.minutos} min
+          {ultima && ` · ${diasAtras(ultima.iniciada_em)}`}
+        </span>
+      </span>
+      <span className="shrink-0 text-lg text-slate-600">›</span>
+    </button>
   )
 }
 
@@ -193,7 +239,7 @@ function FaixaDaSemana({ sessoes }: { sessoes: Sessao[] }) {
   return (
     <div className="mb-6 rounded-2xl border border-borda bg-cartao p-4">
       <div className="mb-3 flex items-baseline justify-between">
-        <span className="text-sm text-slate-400">Ultimos 7 dias</span>
+        <span className="text-sm text-slate-400">Últimos 7 dias</span>
         <span className="text-sm font-semibold">
           {total} treino{total === 1 ? '' : 's'}
         </span>
@@ -204,7 +250,7 @@ function FaixaDaSemana({ sessoes }: { sessoes: Sessao[] }) {
           return (
             <div key={d.toISOString()} className="flex flex-col items-center gap-1.5">
               <span className="text-[10px] uppercase text-slate-500">
-                {['d', 's', 't', 'q', 'q', 's', 's'][d.getDay()]}
+                {['dom', 'seg', 'ter', 'qua', 'qui', 'sex', 'sáb'][d.getDay()]}
               </span>
               <div
                 className={`h-8 w-8 rounded-full ${

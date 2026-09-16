@@ -23,7 +23,7 @@ export default function App() {
           <code className="text-slate-200">VITE_SUPABASE_ANON_KEY</code>.
         </p>
         <p className="text-sm text-slate-400">
-          O passo a passo completo esta em{' '}
+          O passo a passo completo está em{' '}
           <code className="text-slate-200">supabase/SETUP.md</code>.
         </p>
       </div>
@@ -45,9 +45,9 @@ export default function App() {
   if (!perfil) {
     return (
       <div className="flex min-h-dvh flex-col items-center justify-center gap-4 p-8 text-center">
-        <p className="text-lg font-semibold">Esta conta nao tem acesso.</p>
+        <p className="text-lg font-semibold">Esta conta não tem acesso.</p>
         <p className="text-sm text-slate-400">
-          O app e de uso privado. Crie o perfil no Supabase (veja supabase/SETUP.md).
+          O app é de uso privado. Crie o perfil no Supabase (veja supabase/SETUP.md).
         </p>
         <BotaoSair />
       </div>

@@ -46,7 +46,7 @@ export default function Treinos() {
 
       {treinos.length === 0 ? (
         <p className="rounded-2xl border border-borda bg-cartao p-6 text-center text-sm text-slate-400">
-          {ehPersonal ? 'Monte o primeiro treino.' : 'O personal ainda nao montou nada.'}
+          {ehPersonal ? 'Monte o primeiro treino.' : 'O personal ainda não montou nada.'}
         </p>
       ) : (
         <div className="flex flex-col gap-3">
@@ -87,7 +87,7 @@ function Cartao({
             {!treino.ativo && <span className="ml-2 text-xs text-slate-500">(inativo)</span>}
           </h2>
           <p className="text-sm text-slate-400">
-            {treino.itens.length} exercicios · {treino.alunos.map(nomeDe).join(' e ') || 'sem alunos'}
+            {treino.itens.length} exercícios · {treino.alunos.map(nomeDe).join(' e ') || 'sem alunos'}
           </p>
         </div>
         <span className="text-slate-500">{aberto ? '−' : '+'}</span>

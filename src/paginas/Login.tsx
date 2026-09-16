@@ -17,7 +17,7 @@ export default function Login() {
       options: { shouldCreateUser: false, emailRedirectTo: window.location.origin },
     })
     if (error) {
-      setErro('Nao consegui enviar. Confira o e-mail — so os tres cadastrados entram.')
+      setErro('Não consegui enviar. Confira o e-mail — só os três cadastrados entram.')
       setEstado('parado')
     } else {
       setEstado('enviado')
@@ -36,7 +36,7 @@ export default function Login() {
           <p className="font-medium text-emerald-400">Link enviado.</p>
           <p className="mt-2 text-sm text-slate-400">
             Abra o e-mail <span className="text-slate-200">{email}</span> no celular e toque
-            no link. Nao precisa de senha.
+            no link. Não precisa de senha.
           </p>
         </div>
       ) : (

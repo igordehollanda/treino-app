@@ -40,7 +40,7 @@ export default function Historico() {
 
   return (
     <div className="mx-auto max-w-lg p-5">
-      <h1 className="mb-5 text-2xl font-bold">Historico</h1>
+      <h1 className="mb-5 text-2xl font-bold">Histórico</h1>
 
       {ehPersonal && alunos.length > 0 && (
         <div className="mb-5 flex gap-2">
@@ -59,13 +59,13 @@ export default function Historico() {
       )}
 
       <div className="mb-5 grid grid-cols-3 gap-3">
-        <Numero rotulo="este mes" valor={contaNoMes(sessoes, new Date())} />
-        <Numero rotulo="sequencia" valor={sequencia} sufixo="sem" />
+        <Numero rotulo="este mês" valor={contaNoMes(sessoes, new Date())} />
+        <Numero rotulo="sequência" valor={sequencia} sufixo="sem" />
         <Numero rotulo="total" valor={sessoes.length} />
       </div>
 
       <section className="mb-6 rounded-2xl border border-borda bg-cartao p-4">
-        <h2 className="mb-3 text-sm text-slate-400">Frequencia</h2>
+        <h2 className="mb-3 text-sm text-slate-400">Frequência</h2>
         <div className="flex flex-col gap-4">
           {porMes.slice(0, 3).map(([mes, dias]) => (
             <Mes key={mes} mes={mes} dias={dias} />
@@ -77,20 +77,20 @@ export default function Historico() {
       </section>
 
       <section className="rounded-2xl border border-borda bg-cartao p-4">
-        <h2 className="mb-3 text-sm text-slate-400">Evolucao de carga</h2>
+        <h2 className="mb-3 text-sm text-slate-400">Evolução de carga</h2>
         <select
           value={exercicioId}
           onChange={(e) => setExercicioId(e.target.value)}
           className="mb-4 w-full rounded-xl border border-borda bg-slate-800 px-3 py-3 text-base outline-none focus:border-blue-500"
         >
-          <option value="">escolha um exercicio</option>
+          <option value="">escolha um exercício</option>
           {exercicios.map((e) => (
             <option key={e.id} value={e.id}>{e.nome}</option>
           ))}
         </select>
 
         {exercicioId && progressao.length === 0 && (
-          <p className="text-sm text-slate-500">Sem registros desse exercicio.</p>
+          <p className="text-sm text-slate-500">Sem registros desse exercício.</p>
         )}
         {progressao.length > 0 && <Grafico pontos={progressao} />}
       </section>

@@ -82,12 +82,31 @@ export function perfisEmCache() {
   return cacheLer<Perfil[]>('perfis') ?? []
 }
 
+// Quatro telas pedem a semana do ciclo; ela muda uma vez por semana.
+// Sem isto, trocar de aba dispara duas queries a toa, toda vez.
+const emVoo = new Map<string, { em: number; promessa: Promise<unknown> }>()
+
+function umaVezPor<T>(chave: string, ms: number, fn: () => Promise<T>): Promise<T> {
+  const anterior = emVoo.get(chave)
+  if (anterior && Date.now() - anterior.em < ms) return anterior.promessa as Promise<T>
+  const promessa = fn().catch((erro) => {
+    emVoo.delete(chave) // falhou: a proxima tentativa vai a rede de novo
+    throw erro
+  })
+  emVoo.set(chave, { em: Date.now(), promessa })
+  return promessa
+}
+
 /**
  * A semana do ciclo em que voces estao hoje.
  * Fica em cache porque a tela de treino nao pode esperar rede para saber
  * quantas repeticoes fazer.
  */
-export async function buscarSemanaAtual(): Promise<SemanaCiclo | null> {
+export function buscarSemanaAtual(): Promise<SemanaCiclo | null> {
+  return umaVezPor('semana', 60_000, carregarSemanaAtual)
+}
+
+async function carregarSemanaAtual(): Promise<SemanaCiclo | null> {
   const [{ data: cfg }, { data: semanas }] = await Promise.all([
     supabase.from('config').select('ciclo_inicio').maybeSingle(),
     supabase.from('periodizacao').select('semana, reps, observacao').order('semana'),

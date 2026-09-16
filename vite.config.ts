@@ -4,6 +4,19 @@ import tailwindcss from '@tailwindcss/vite'
 import { VitePWA } from 'vite-plugin-pwa'
 
 export default defineConfig({
+  build: {
+    rollupOptions: {
+      output: {
+        // Separa o que quase nunca muda do que muda a cada ajuste.
+        // Sem isto, corrigir um texto obriga o celular a rebaixar os
+        // ~500 KB inteiros; com isto, so o pedaco do app.
+        manualChunks: {
+          react: ['react', 'react-dom', 'react-dom/client', 'react-router-dom'],
+          supabase: ['@supabase/supabase-js'],
+        },
+      },
+    },
+  },
   plugins: [
     react(),
     tailwindcss(),

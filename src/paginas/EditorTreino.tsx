@@ -32,7 +32,7 @@ export default function EditorTreino() {
   }, [treinoId])
 
   if (!ehPersonal) {
-    return <p className="p-8 text-center text-slate-400">So o personal edita treinos.</p>
+    return <p className="p-8 text-center text-slate-400">Só o personal edita treinos.</p>
   }
   if (!treino) return <p className="p-8 text-center text-slate-400">carregando...</p>
 
@@ -75,7 +75,7 @@ export default function EditorTreino() {
 
   async function excluir() {
     if (!treino) return
-    if (!confirm(`Apagar "${treino.nome}"? O historico ja registrado continua salvo.`)) return
+    if (!confirm(`Apagar "${treino.nome}"? O histórico já registrado continua salvo.`)) return
     await apagarTreino(treino.id)
     navegar('/treinos', { replace: true })
   }
@@ -113,7 +113,7 @@ export default function EditorTreino() {
       </section>
 
       <div className="mb-3 flex items-center justify-between">
-        <h2 className="font-semibold">Exercicios</h2>
+        <h2 className="font-semibold">Exercícios</h2>
         <button
           onClick={() => setAdicionando(true)}
           className="rounded-lg bg-blue-600 px-3 py-1.5 text-sm font-medium"
@@ -220,7 +220,7 @@ function LinhaItem({
       </div>
 
       <div className="mt-3 grid grid-cols-3 gap-2">
-        <Mini rotulo="series" valor={series} aoMudar={setSeries} aoSair={() => salvar()} />
+        <Mini rotulo="séries" valor={series} aoMudar={setSeries} aoSair={() => salvar()} />
         <Mini
           rotulo="reps"
           valor={reps}
@@ -262,7 +262,7 @@ function LinhaItem({
         value={observacao}
         onChange={(e) => setObservacao(e.target.value)}
         onBlur={() => salvar()}
-        placeholder="observacao (ex: pegada aberta)"
+        placeholder="observação (ex: pegada aberta)"
         className="mt-3 w-full rounded-lg border border-borda bg-slate-800 px-3 py-2 text-sm outline-none focus:border-blue-500"
       />
     </div>
@@ -327,7 +327,7 @@ function SeletorExercicio({
           autoFocus
           value={busca}
           onChange={(e) => setBusca(e.target.value)}
-          placeholder="buscar exercicio"
+          placeholder="buscar exercício"
           className="flex-1 rounded-xl border border-borda bg-cartao px-4 py-3 text-base outline-none focus:border-blue-500"
         />
         <button onClick={aoFechar} className="text-sm text-slate-400">cancelar</button>
