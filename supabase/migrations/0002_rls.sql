@@ -114,3 +114,31 @@ create policy "apago minhas series" on series_registros
 -- Realtime: o personal edita no celular dele e o treino muda no de voces.
 alter publication supabase_realtime add table treinos;
 alter publication supabase_realtime add table treino_exercicios;
+
+-- =====================================================================
+-- Privilegios de tabela para o papel que o app usa.
+--
+-- Sao duas camadas diferentes: a RLS acima decide QUAIS LINHAS cada um
+-- enxerga; estes grants decidem se a tabela e ALCANCAVEL pela API.
+--
+-- Ficam explicitos aqui para o projeto nao depender da opcao
+-- "Automatically expose new tables" do painel: com ela desligada (que e
+-- o recomendado), sem estes grants o app receberia "permission denied".
+-- =====================================================================
+
+grant select, update                 on perfis            to authenticated;
+grant select, insert, update         on exercicios        to authenticated;
+grant select, insert, update, delete on treinos           to authenticated;
+grant select, insert, update, delete on treino_alunos     to authenticated;
+grant select, insert, update, delete on treino_exercicios to authenticated;
+grant select, insert, update, delete on sessoes           to authenticated;
+grant select, insert, update, delete on series_registros  to authenticated;
+grant select                         on ultimas_cargas    to authenticated;
+
+-- Visitante nao autenticado nao alcanca nada. Todas as policies acima
+-- sao `to authenticated`, entao ele ja nao leria linha alguma — isto
+-- apenas torna a intencao explicita e independente do painel.
+revoke all on perfis,            exercicios,        treinos,
+              treino_alunos,     treino_exercicios, sessoes,
+              series_registros,  ultimas_cargas
+  from anon;

@@ -47,7 +47,25 @@ copiar e colar.
    | **Region** | `South America (São Paulo)` |
    | **Pricing Plan** | `Free` |
 
-5. Clique em **Create new project**.
+   **GitHub (optional):** deixe em branco. Essa integracao publica o
+   schema a partir do repositorio, e espera migrations no padrao do
+   Supabase CLI (nome com timestamp + `config.toml`). As nossas nao
+   seguem esse padrao, e voce vai rodar as migrations uma unica vez —
+   automatizar isso resolveria um problema que voce nao tem.
+
+5. Na secao **Security**, deixe assim:
+
+   | Opcao | Valor | Por que |
+   |---|---|---|
+   | **Enable Data API** | ✅ **ligado** | e por aqui que o app fala com o banco (supabase-js). Desligado, nada funciona |
+   | **Automatically expose new tables** | ☐ **desligado** | o proprio Supabase recomenda. A migration `0002` ja concede acesso tabela por tabela, entao o app nao depende disto |
+   | **Enable automatic RLS** | ✅ **ligado** | rede de seguranca: qualquer tabela criada no futuro nasce com RLS ativa. As nossas ja ativam explicitamente, entao aqui e so protecao contra esquecimento |
+
+   > Se voce **deixar** "Automatically expose new tables" ligado tambem
+   > funciona — os grants da migration sao os mesmos. Desligar so fecha
+   > uma porta a mais.
+
+6. Clique em **Create new project**.
 
 **Sobre a senha do banco:** o app nao usa ela. Ela serve para conectar
 direto no Postgres (psql, DBeaver, backup). Salve mesmo assim — o
@@ -79,9 +97,10 @@ Cria as tabelas: `perfis`, `exercicios`, `treinos`, `treino_alunos`,
 
 ### 2.2 — `supabase/migrations/0002_rls.sql`
 
-Liga a seguranca por linha (RLS) em todas as tabelas e cria as regras de
-quem ve o que. **Este e o arquivo que fecha o app** — sem ele, qualquer
-pessoa com a chave publica leria tudo.
+Liga a seguranca por linha (RLS) em todas as tabelas, cria as regras de
+quem ve o que e concede o acesso de API tabela por tabela. **Este e o
+arquivo que fecha o app** — sem ele, qualquer pessoa com a chave publica
+leria tudo.
 
 ✅ Resultado esperado: **Success. No rows returned**
 
@@ -396,6 +415,7 @@ salvo — nao precisa pedir link toda vez.
 - [ ] Projeto `APP - TREINOS` criado, separado do CRM
 - [ ] As 3 migrations rodaram sem erro
 - [ ] 7 tabelas, todas com politica de RLS
+- [ ] Security: Data API ligado, RLS automatica ligada
 - [ ] **Allow new users to sign up: DESLIGADO**
 - [ ] 3 usuarios criados com *Auto Confirm*
 - [ ] 3 linhas em `perfis` (2 alunos + 1 personal)
