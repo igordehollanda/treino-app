@@ -366,6 +366,16 @@ Duas saidas:
 
 ## Etapa 9 — Montar o primeiro treino
 
+### Atalho: um treino de exemplo agora
+
+O personal pode nao estar disponivel na hora em que voce quer testar, e
+aluno nao monta treino. Para nao travar, rode `supabase/exemplo_treino.sql`
+no SQL Editor: ele cria um treino atribuido aos dois alunos, com uma
+variacao exclusiva de um deles — da para testar o fluxo inteiro na hora, e
+o personal apaga depois.
+
+### O jeito normal
+
 Entre no app **com o e-mail do personal** (ou com o seu, so para testar
 — mas quem edita e o personal).
 
