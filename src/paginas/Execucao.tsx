@@ -3,10 +3,13 @@ import { useNavigate, useParams } from 'react-router-dom'
 import { useAuth } from '../lib/auth'
 import { supabase } from '../lib/supabase'
 import {
-  apagarSerie, buscarSeriesDaSessao, buscarTreinos, buscarUltimasCargas, cargasEmCache,
-  finalizarSessao, registrarSerie, sessaoLocal, treinosEmCache,
+  apagarSerie, buscarSemanaAtual, buscarSeriesDaSessao, buscarTreinos, buscarUltimasCargas,
+  cargasEmCache, finalizarSessao, registrarSerie, semanaEmCache, sessaoLocal, treinosEmCache,
 } from '../lib/db'
-import type { Sessao, SerieRegistro, TreinoCompleto, TreinoExercicio, UltimaCarga } from '../lib/tipos'
+import { repsDoDia } from '../lib/periodizacao'
+import type {
+  SemanaCiclo, Sessao, SerieRegistro, TreinoCompleto, TreinoExercicio, UltimaCarga,
+} from '../lib/tipos'
 
 type Marcada = { carga: string; reps: string; feita: boolean }
 const chave = (nome: string, serie: number) => `${nome}::${serie}`
@@ -22,6 +25,7 @@ export default function Execucao() {
     perfil ? cargasEmCache(perfil.id) : {},
   )
   const [marcadas, setMarcadas] = useState<Record<string, Marcada>>({})
+  const [semana, setSemana] = useState<SemanaCiclo | null>(semanaEmCache())
   const [descanso, setDescanso] = useState<number | null>(null)
   const [finalizando, setFinalizando] = useState(false)
 
@@ -38,6 +42,7 @@ export default function Execucao() {
       })
 
     void buscarUltimasCargas(perfil.id).then(setCargas).catch(console.error)
+    void buscarSemanaAtual().then(setSemana).catch(console.error)
 
     void buscarSeriesDaSessao(sessaoId)
       .then((series) => setMarcadas(reidratar(series)))
@@ -141,7 +146,15 @@ export default function Execucao() {
           <div className="min-w-0">
             <h1 className="truncate text-lg font-bold">{treino.nome}</h1>
             <p className="text-xs text-slate-400">
-              {feitas} de {totalSeries} series
+              {feitas} de {totalSeries} séries
+              {semana && (
+                <>
+                  {' · '}
+                  <span className="text-slate-300">
+                    semana {semana.semana} · {semana.reps} reps
+                  </span>
+                </>
+              )}
             </p>
           </div>
           <button
@@ -164,6 +177,7 @@ export default function Execucao() {
           <CartaoExercicio
             key={item.id}
             item={item}
+            semana={semana}
             soMeu={item.perfil_id !== null}
             ultima={cargas[item.exercicio_id]}
             marcadas={marcadas}
@@ -193,18 +207,22 @@ export default function Execucao() {
 }
 
 function CartaoExercicio({
-  item, soMeu, ultima, marcadas, aoAlterar, aoAlternar,
+  item, semana, soMeu, ultima, marcadas, aoAlterar, aoAlternar,
 }: {
   item: TreinoExercicio
+  semana: SemanaCiclo | null
   soMeu: boolean
   ultima?: UltimaCarga
   marcadas: Record<string, Marcada>
   aoAlterar: (k: string, campo: 'carga' | 'reps', v: string) => void
   aoAlternar: (i: TreinoExercicio, s: number, c: string, r: string) => Promise<void>
 }) {
-  const nome = item.exercicios?.nome ?? 'Exercicio'
+  const nome = item.exercicios?.nome ?? 'Exercício'
+  const alvoReps = repsDoDia(item, semana)
   const padraoCarga = ultima?.carga_kg != null ? String(ultima.carga_kg) : ''
-  const padraoReps = ultima?.reps != null ? String(ultima.reps) : primeiroNumero(item.reps)
+  // A meta da semana manda no chute inicial; a ultima vez so entra se
+  // ela tiver sido feita dentro da mesma faixa de repeticoes.
+  const padraoReps = primeiroNumero(alvoReps)
 
   return (
     <section className="rounded-2xl border border-borda bg-cartao p-4">
@@ -212,8 +230,11 @@ function CartaoExercicio({
         <div className="min-w-0">
           <h2 className="font-semibold leading-tight">{nome}</h2>
           <p className="mt-0.5 text-sm text-slate-400">
-            {item.series} x {item.reps}
+            {item.series} × {alvoReps}
             {item.descanso_seg > 0 && ` · ${item.descanso_seg}s`}
+            {item.reps && (
+              <span className="ml-1.5 text-amber-400/80">fixo</span>
+            )}
           </p>
         </div>
         {soMeu && (

@@ -3,9 +3,10 @@ import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../lib/auth'
 import { supabase } from '../lib/supabase'
 import {
-  buscarSessaoAberta, buscarSessoes, buscarTreinos, iniciarSessao, treinosEmCache,
+  buscarSemanaAtual, buscarSessaoAberta, buscarSessoes, buscarTreinos, iniciarSessao,
+  semanaEmCache, treinosEmCache,
 } from '../lib/db'
-import type { Sessao, TreinoCompleto } from '../lib/tipos'
+import type { SemanaCiclo, Sessao, TreinoCompleto } from '../lib/tipos'
 
 export default function Hoje() {
   const { perfil, ehPersonal, sair } = useAuth()
@@ -13,6 +14,7 @@ export default function Hoje() {
   const [treinos, setTreinos] = useState<TreinoCompleto[]>(treinosEmCache())
   const [sessoes, setSessoes] = useState<Sessao[]>([])
   const [aberta, setAberta] = useState<Sessao | null>(null)
+  const [semana, setSemana] = useState<SemanaCiclo | null>(semanaEmCache())
 
   useEffect(() => {
     if (!perfil) return
@@ -20,6 +22,7 @@ export default function Hoje() {
     void buscarTreinos().then(setTreinos).catch(console.error)
     void buscarSessoes(perfil.id, trintaDias).then(setSessoes).catch(console.error)
     void buscarSessaoAberta(perfil.id).then(setAberta).catch(console.error)
+    void buscarSemanaAtual().then(setSemana).catch(console.error)
 
     // O personal edita no celular dele; aqui a lista se atualiza sozinha.
     const canal = supabase
@@ -68,6 +71,8 @@ export default function Hoje() {
           sair
         </button>
       </header>
+
+      {semana && <FaixaDoCiclo semana={semana} />}
 
       <FaixaDaSemana sessoes={sessoes} />
 
@@ -142,6 +147,34 @@ function CartaoTreino({
       >
         Iniciar
       </button>
+    </div>
+  )
+}
+
+/**
+ * A meta de repeticoes de hoje, vinda da periodizacao.
+ * Fica no alto porque e a primeira coisa que muda o que voce vai fazer
+ * na academia — antes ate de escolher o treino.
+ */
+function FaixaDoCiclo({ semana }: { semana: SemanaCiclo }) {
+  return (
+    <div className="mb-3 rounded-2xl border border-blue-500/30 bg-blue-500/10 p-4">
+      <div className="flex items-baseline justify-between gap-3">
+        <span className="text-xs font-medium uppercase tracking-wide text-blue-300">
+          Semana {semana.semana} de {semana.total}
+        </span>
+        <span className="text-lg font-bold tabular-nums text-blue-100">
+          {semana.reps} <span className="text-sm font-normal text-blue-300">reps</span>
+        </span>
+      </div>
+      {semana.observacao && (
+        <p className="mt-1.5 text-sm text-blue-200/80">{semana.observacao}</p>
+      )}
+      <p className="mt-1 text-xs text-blue-300/60">
+        {semana.diasParaProxima === 1
+          ? 'muda amanhã'
+          : `muda em ${semana.diasParaProxima} dias`}
+      </p>
     </div>
   )
 }

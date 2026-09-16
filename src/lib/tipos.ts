@@ -31,10 +31,29 @@ export type TreinoExercicio = {
   perfil_id: string | null
   ordem: number
   series: number
-  reps: string
+  /** null = segue a periodizacao da semana; texto = excecao deste exercicio. */
+  reps: string | null
   descanso_seg: number
   observacao: string | null
   exercicios: Exercicio | null
+}
+
+export type Periodizacao = {
+  semana: number
+  reps: string
+  observacao: string | null
+}
+
+/** Onde o ciclo esta hoje, ja resolvido para a tela. */
+export type SemanaCiclo = {
+  semana: number
+  reps: string
+  observacao: string | null
+  /** quantas semanas tem o ciclo */
+  total: number
+  /** qual repeticao do ciclo estamos vivendo (1a, 2a, ...) */
+  ciclo: number
+  diasParaProxima: number
 }
 
 export type Sessao = {

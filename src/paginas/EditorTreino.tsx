@@ -186,13 +186,13 @@ function LinhaItem({
   ultimo: boolean
   aoMover: (delta: number) => void
   aoSalvar: (campos: {
-    perfil_id: string | null; series: number; reps: string
+    perfil_id: string | null; series: number; reps: string | null
     descanso_seg: number; observacao: string | null
   }) => Promise<void>
   aoApagar: () => Promise<void>
 }) {
   const [series, setSeries] = useState(String(item.series))
-  const [reps, setReps] = useState(item.reps)
+  const [reps, setReps] = useState(item.reps ?? '')
   const [descanso, setDescanso] = useState(String(item.descanso_seg))
   const [observacao, setObservacao] = useState(item.observacao ?? '')
   const [perfilId, setPerfilId] = useState<string | null>(item.perfil_id)
@@ -201,7 +201,8 @@ function LinhaItem({
     void aoSalvar({
       perfil_id: perfilId,
       series: Math.max(1, Number(series) || 1),
-      reps: reps.trim() || '10-12',
+      // Vazio = segue a periodizacao da semana. E o caso normal.
+      reps: reps.trim() || null,
       descanso_seg: Math.max(0, Number(descanso) || 0),
       observacao: observacao.trim() || null,
       ...sobrescreve,
@@ -220,7 +221,14 @@ function LinhaItem({
 
       <div className="mt-3 grid grid-cols-3 gap-2">
         <Mini rotulo="series" valor={series} aoMudar={setSeries} aoSair={() => salvar()} />
-        <Mini rotulo="reps" valor={reps} aoMudar={setReps} aoSair={() => salvar()} texto />
+        <Mini
+          rotulo="reps"
+          valor={reps}
+          aoMudar={setReps}
+          aoSair={() => salvar()}
+          texto
+          placeholder="periodização"
+        />
         <Mini rotulo="descanso (s)" valor={descanso} aoMudar={setDescanso} aoSair={() => salvar()} />
       </div>
 
@@ -262,13 +270,14 @@ function LinhaItem({
 }
 
 function Mini({
-  rotulo, valor, aoMudar, aoSair, texto,
+  rotulo, valor, aoMudar, aoSair, texto, placeholder,
 }: {
   rotulo: string
   valor: string
   aoMudar: (v: string) => void
   aoSair: () => void
   texto?: boolean
+  placeholder?: string
 }) {
   return (
     <label className="flex flex-col gap-1">
@@ -276,6 +285,7 @@ function Mini({
       <input
         inputMode={texto ? 'text' : 'numeric'}
         value={valor}
+        placeholder={placeholder}
         onChange={(e) => aoMudar(e.target.value)}
         onBlur={aoSair}
         className="w-full rounded-lg border border-borda bg-slate-800 px-3 py-2 text-base outline-none focus:border-blue-500"

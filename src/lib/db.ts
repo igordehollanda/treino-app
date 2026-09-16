@@ -1,8 +1,10 @@
 import { supabase } from './supabase'
 import { enfileirar } from './fila'
 import type {
-  Exercicio, Perfil, SerieRegistro, Sessao, TreinoCompleto, UltimaCarga,
+  Exercicio, Perfil, Periodizacao, SemanaCiclo, SerieRegistro, Sessao,
+  TreinoCompleto, UltimaCarga,
 } from './tipos'
+import { semanaDoCiclo } from './periodizacao'
 
 // --- cache local ------------------------------------------------------
 // A academia tem sinal ruim. O ultimo treino carregado fica no
@@ -78,6 +80,29 @@ export async function buscarPerfis(): Promise<Perfil[]> {
 
 export function perfisEmCache() {
   return cacheLer<Perfil[]>('perfis') ?? []
+}
+
+/**
+ * A semana do ciclo em que voces estao hoje.
+ * Fica em cache porque a tela de treino nao pode esperar rede para saber
+ * quantas repeticoes fazer.
+ */
+export async function buscarSemanaAtual(): Promise<SemanaCiclo | null> {
+  const [{ data: cfg }, { data: semanas }] = await Promise.all([
+    supabase.from('config').select('ciclo_inicio').maybeSingle(),
+    supabase.from('periodizacao').select('semana, reps, observacao').order('semana'),
+  ])
+
+  const atual = semanaDoCiclo(
+    (cfg as { ciclo_inicio: string } | null)?.ciclo_inicio ?? null,
+    (semanas ?? []) as Periodizacao[],
+  )
+  if (atual) cacheGravar('semana', atual)
+  return atual
+}
+
+export function semanaEmCache() {
+  return cacheLer<SemanaCiclo>('semana')
 }
 
 export async function buscarExercicios(): Promise<Exercicio[]> {
@@ -288,7 +313,8 @@ export async function definirAlunos(treinoId: string, perfis: string[]) {
 
 export async function salvarItem(item: {
   id?: string; treino_id: string; exercicio_id: string; perfil_id: string | null
-  ordem: number; series: number; reps: string; descanso_seg: number; observacao: string | null
+  ordem: number; series: number; reps: string | null; descanso_seg: number
+  observacao: string | null
 }) {
   const { error } = await supabase
     .from('treino_exercicios')

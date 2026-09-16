@@ -1,18 +1,24 @@
 import { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../lib/auth'
-import { buscarPerfis, buscarTreinos, perfisEmCache, salvarTreino, treinosEmCache } from '../lib/db'
-import type { Perfil, TreinoCompleto } from '../lib/tipos'
+import {
+  buscarPerfis, buscarSemanaAtual, buscarTreinos, perfisEmCache, salvarTreino,
+  semanaEmCache, treinosEmCache,
+} from '../lib/db'
+import { repsDoDia } from '../lib/periodizacao'
+import type { Perfil, SemanaCiclo, TreinoCompleto } from '../lib/tipos'
 
 export default function Treinos() {
   const { perfil, ehPersonal } = useAuth()
   const navegar = useNavigate()
   const [treinos, setTreinos] = useState<TreinoCompleto[]>(treinosEmCache())
   const [perfis, setPerfis] = useState<Perfil[]>(perfisEmCache())
+  const [semana, setSemana] = useState<SemanaCiclo | null>(semanaEmCache())
 
   useEffect(() => {
     void buscarTreinos().then(setTreinos).catch(console.error)
     void buscarPerfis().then(setPerfis).catch(console.error)
+    void buscarSemanaAtual().then(setSemana).catch(console.error)
   }, [])
 
   async function novo() {
@@ -49,6 +55,7 @@ export default function Treinos() {
               key={t.id}
               treino={t}
               perfis={perfis}
+              semana={semana}
               meuId={perfil?.id ?? ''}
               editavel={ehPersonal}
             />
@@ -60,10 +67,11 @@ export default function Treinos() {
 }
 
 function Cartao({
-  treino, perfis, meuId, editavel,
+  treino, perfis, semana, meuId, editavel,
 }: {
   treino: TreinoCompleto
   perfis: Perfil[]
+  semana: SemanaCiclo | null
   meuId: string
   editavel: boolean
 }) {
@@ -105,7 +113,7 @@ function Cartao({
                   )}
                 </span>
                 <span className="shrink-0 text-slate-400">
-                  {i.series} x {i.reps}
+                  {i.series} × {repsDoDia(i, semana)}
                 </span>
               </li>
             ))}
