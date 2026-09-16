@@ -3,9 +3,10 @@ import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../lib/auth'
 import { supabase } from '../lib/supabase'
 import {
-  buscarPlano, buscarTreinos, definirDiaDoPlano, planoEmCache, treinosEmCache,
+  apagarAtividade, buscarAtividades, buscarPlano, buscarTreinos, definirDiaDoPlano,
+  planoEmCache, salvarAtividade, treinosEmCache,
 } from '../lib/db'
-import type { TreinoCompleto } from '../lib/tipos'
+import type { Atividade, TreinoCompleto } from '../lib/tipos'
 
 // Segunda primeiro: e como uma semana de treino e pensada.
 const DIAS: [number, string][] = [
@@ -102,6 +103,8 @@ export default function Conta() {
 
       <PlanoDaSemana perfilId={perfil?.id ?? ''} ehPersonal={perfil?.papel === 'personal'} />
 
+      <Extras perfilId={perfil?.id ?? ''} />
+
       <button
         onClick={() => void sair()}
         className="mt-8 w-full rounded-xl border border-borda py-3 text-sm text-suave"
@@ -175,6 +178,107 @@ function PlanoDaSemana({ perfilId, ehPersonal }: { perfilId: string; ehPersonal:
           </label>
         ))}
       </div>
+    </section>
+  )
+}
+
+/** Jiu-jitsu, cardio, corrida: o que voce marca sem serie nem carga. */
+function Extras({ perfilId }: { perfilId: string }) {
+  const [atividades, setAtividades] = useState<Atividade[]>([])
+  const [nome, setNome] = useState('')
+  const [emoji, setEmoji] = useState('')
+  const [meta, setMeta] = useState('')
+
+  const recarregar = () =>
+    buscarAtividades(perfilId).then(setAtividades).catch(console.error)
+
+  useEffect(() => {
+    if (perfilId) void recarregar()
+     
+  }, [perfilId])
+
+  async function adicionar(e: React.FormEvent) {
+    e.preventDefault()
+    if (!nome.trim()) return
+    await salvarAtividade({
+      nome: nome.trim(),
+      emoji: emoji.trim() || null,
+      perfil_id: perfilId,
+      meta_semanal: meta.trim() ? Math.min(14, Math.max(1, Number(meta))) : null,
+      ordem: atividades.length,
+    })
+    setNome('')
+    setEmoji('')
+    setMeta('')
+    await recarregar()
+  }
+
+  async function remover(a: Atividade) {
+    if (!confirm(`Remover "${a.nome}"? Os dias já marcados saem junto.`)) return
+    await apagarAtividade(a.id)
+    await recarregar()
+  }
+
+  return (
+    <section className="mt-8">
+      <h2 className="text-sm font-medium text-texto">Extras</h2>
+      <p className="mt-1 text-xs text-fraco">
+        Atividades que você só marca que fez — sem série nem carga. A meta semanal é
+        opcional.
+      </p>
+
+      <ul className="mt-3 flex flex-col gap-1.5">
+        {atividades.map((a) => (
+          <li
+            key={a.id}
+            className="flex items-center gap-3 rounded-xl border border-borda px-3 py-2.5"
+          >
+            <span className="text-lg leading-none">{a.emoji ?? '•'}</span>
+            <span className="min-w-0 flex-1">
+              <span className="block truncate text-sm">{a.nome}</span>
+              <span className="text-xs text-fraco">
+                {a.meta_semanal ? `meta: ${a.meta_semanal}× por semana` : 'sem meta'}
+              </span>
+            </span>
+            <button
+              onClick={() => void remover(a)}
+              aria-label={`Remover ${a.nome}`}
+              className="px-2 text-erro"
+            >
+              ×
+            </button>
+          </li>
+        ))}
+      </ul>
+
+      <form onSubmit={adicionar} className="mt-3 flex gap-2">
+        <input
+          value={emoji}
+          onChange={(e) => setEmoji(e.target.value)}
+          placeholder="🏃"
+          maxLength={4}
+          className="w-14 rounded-xl border border-borda bg-superficie px-2 py-2.5 text-center text-base outline-none focus:border-acento"
+        />
+        <input
+          value={nome}
+          onChange={(e) => setNome(e.target.value)}
+          placeholder="nova atividade"
+          className="min-w-0 flex-1 rounded-xl border border-borda bg-superficie px-3 py-2.5 text-sm outline-none focus:border-acento"
+        />
+        <input
+          value={meta}
+          onChange={(e) => setMeta(e.target.value)}
+          inputMode="numeric"
+          placeholder="3×"
+          className="w-14 rounded-xl border border-borda bg-superficie px-2 py-2.5 text-center text-sm outline-none focus:border-acento"
+        />
+        <button
+          type="submit"
+          className="shrink-0 rounded-xl bg-acento px-4 text-sm font-semibold active:bg-acento-forte"
+        >
+          +
+        </button>
+      </form>
     </section>
   )
 }

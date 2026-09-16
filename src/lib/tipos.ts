@@ -82,6 +82,25 @@ export type SerieRegistro = {
   registrada_em: string
 }
 
+export type Atividade = {
+  id: string
+  nome: string
+  emoji: string | null
+  /** null = vale para todos os alunos. */
+  perfil_id: string | null
+  /** vezes por semana; null = sem meta, so registro. */
+  meta_semanal: number | null
+  ativa: boolean
+  ordem: number
+}
+
+export type AtividadeRegistro = {
+  atividade_id: string
+  perfil_id: string
+  dia: string
+  duracao_min: number | null
+}
+
 export type PontoProgressao = {
   dia: string
   carga: number

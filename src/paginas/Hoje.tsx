@@ -3,9 +3,12 @@ import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../lib/auth'
 import { supabase } from '../lib/supabase'
 import {
-  buscarPlano, buscarSemanaAtual, buscarSessaoAberta, buscarSessoes, buscarTreinos,
-  iniciarSessao, planoEmCache, semanaEmCache, treinosEmCache,
+  atividadesEmCache, buscarAtividades, buscarPlano, buscarRegistrosDeAtividade,
+  buscarSemanaAtual, buscarSessaoAberta, buscarSessoes, buscarTreinos, iniciarSessao,
+  marcarAtividade, planoEmCache, semanaEmCache, treinosEmCache,
 } from '../lib/db'
+import { chaveDia, inicioDaSemana } from '../lib/datas'
+import type { Atividade, AtividadeRegistro } from '../lib/tipos'
 import type { SemanaCiclo, Sessao, TreinoCompleto } from '../lib/tipos'
 
 export default function Hoje() {
@@ -18,6 +21,10 @@ export default function Hoje() {
   const [plano, setPlano] = useState<Record<number, string>>(
     perfil ? planoEmCache(perfil.id) : {},
   )
+  const [atividades, setAtividades] = useState<Atividade[]>(
+    perfil ? atividadesEmCache(perfil.id) : [],
+  )
+  const [registros, setRegistros] = useState<AtividadeRegistro[]>([])
 
   useEffect(() => {
     if (!perfil) return
@@ -27,6 +34,10 @@ export default function Hoje() {
     void buscarSessaoAberta(perfil.id).then(setAberta).catch(console.error)
     void buscarSemanaAtual().then(setSemana).catch(console.error)
     void buscarPlano(perfil.id).then(setPlano).catch(console.error)
+    void buscarAtividades(perfil.id).then(setAtividades).catch(console.error)
+    void buscarRegistrosDeAtividade(perfil.id, inicioDaSemana())
+      .then(setRegistros)
+      .catch(console.error)
 
     // O personal edita no celular dele; aqui a lista se atualiza sozinha.
     const canal = supabase
@@ -70,6 +81,27 @@ export default function Hoje() {
   // treinos viram linha.
   const principal = aberta ? null : (doPlano ?? (temPlano ? null : sugerido))
   const resto = meusTreinos.filter((t) => t.id !== principal?.id)
+
+  /** Marcar e desmarcar e otimista: o toque responde antes da rede. */
+  async function alternarAtividade(a: Atividade) {
+    if (!perfil) return
+    const hoje = chaveDia(new Date())
+    const feito = registros.some((r) => r.atividade_id === a.id && r.dia === hoje)
+
+    setRegistros((rs) =>
+      feito
+        ? rs.filter((r) => !(r.atividade_id === a.id && r.dia === hoje))
+        : [...rs, { atividade_id: a.id, perfil_id: perfil.id, dia: hoje, duracao_min: null }],
+    )
+    try {
+      await marcarAtividade(a.id, perfil.id, hoje, !feito)
+    } catch (e) {
+      console.error(e)
+      await buscarRegistrosDeAtividade(perfil.id, inicioDaSemana())
+        .then(setRegistros)
+        .catch(console.error)
+    }
+  }
 
   async function comecar(treino: TreinoCompleto) {
     if (!perfil) return
@@ -146,7 +178,86 @@ export default function Hoje() {
           </div>
         </>
       )}
+
+      {atividades.length > 0 && (
+        <Extras
+          atividades={atividades}
+          registros={registros}
+          aoAlternar={(a) => void alternarAtividade(a)}
+        />
+      )}
     </div>
+  )
+}
+
+/**
+ * Jiu-jitsu, cardio: um toque marca o dia.
+ *
+ * Fora dos treinos de propósito — nao tem serie nem carga, e misturar
+ * estragaria as contagens. Quem tem meta semanal mostra o placar; quem
+ * nao tem, so o registro.
+ */
+function Extras({
+  atividades, registros, aoAlternar,
+}: {
+  atividades: Atividade[]
+  registros: AtividadeRegistro[]
+  aoAlternar: (a: Atividade) => void
+}) {
+  const hoje = chaveDia(new Date())
+  const inicio = chaveDia(inicioDaSemana())
+
+  return (
+    <section className="mt-6">
+      <p className="rotulo mb-2">Extras</p>
+      <div className="flex flex-col gap-2 md:grid md:grid-cols-2">
+        {atividades.map((a) => {
+          const feitoHoje = registros.some((r) => r.atividade_id === a.id && r.dia === hoje)
+          const naSemana = registros.filter(
+            (r) => r.atividade_id === a.id && r.dia >= inicio,
+          ).length
+          const bateuMeta = a.meta_semanal != null && naSemana >= a.meta_semanal
+
+          return (
+            <button
+              key={a.id}
+              onClick={() => aoAlternar(a)}
+              className={`flex items-center gap-3 rounded-xl border px-4 py-3 text-left transition-colors ${
+                feitoHoje
+                  ? 'border-feito/40 bg-feito/10'
+                  : 'border-borda bg-superficie active:bg-elevado'
+              }`}
+            >
+              <span className="text-xl leading-none">{a.emoji ?? '•'}</span>
+              <span className="min-w-0 flex-1">
+                <span className="block truncate font-medium">{a.nome}</span>
+                {a.meta_semanal != null && (
+                  <span
+                    className={`text-xs ${bateuMeta ? 'text-feito' : 'text-fraco'}`}
+                  >
+                    <span className="font-bold">{naSemana}</span>/{a.meta_semanal} esta semana
+                    {bateuMeta && ' · meta batida'}
+                  </span>
+                )}
+                {a.meta_semanal == null && naSemana > 0 && (
+                  <span className="text-xs text-fraco">
+                    <span className="font-bold">{naSemana}</span>× esta semana
+                  </span>
+                )}
+              </span>
+              <span
+                className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-lg font-bold ${
+                  feitoHoje ? 'bg-feito text-fundo' : 'border border-borda text-fraco/70'
+                }`}
+              >
+                ✓
+              </span>
+            </button>
+          )
+        })}
+      </div>
+      <p className="mt-2 text-xs text-fraco/70">Um toque marca hoje. Outro desmarca.</p>
+    </section>
   )
 }
 
@@ -271,8 +382,7 @@ function Semana({
   const hoje = new Date()
   hoje.setHours(0, 0, 0, 0)
   // Semana comecando na segunda: e como o plano de treino e pensado.
-  const segunda = new Date(hoje)
-  segunda.setDate(hoje.getDate() - ((hoje.getDay() + 6) % 7))
+  const segunda = inicioDaSemana(hoje)
 
   const feitos = new Set(sessoes.map((s) => s.iniciada_em.slice(0, 10)))
   const letraDe = (treinoId?: string) =>
@@ -334,9 +444,6 @@ function Semana({
     </div>
   )
 }
-
-const chaveDia = (d: Date) =>
-  `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 
 /** "Terça-feira", com maiuscula, para abrir a frase do cartao. */
 function diaPorExtenso(d: Date) {

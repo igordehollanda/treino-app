@@ -1,8 +1,8 @@
 import { supabase } from './supabase'
 import { enfileirar } from './fila'
 import type {
-  Exercicio, Perfil, Periodizacao, PontoProgressao, SemanaCiclo, SerieRegistro,
-  Sessao, TreinoCompleto, UltimaCarga,
+  Atividade, AtividadeRegistro, Exercicio, Perfil, Periodizacao, PontoProgressao,
+  SemanaCiclo, SerieRegistro, Sessao, TreinoCompleto, UltimaCarga,
 } from './tipos'
 import { semanaDoCiclo } from './periodizacao'
 
@@ -191,6 +191,79 @@ export async function buscarUltimasCargas(perfilId: string) {
 
 export function cargasEmCache(perfilId: string) {
   return cacheLer<Record<string, UltimaCarga>>(`cargas:${perfilId}`) ?? {}
+}
+
+// --- atividades complementares ---------------------------------------
+// Jiu-jitsu, cardio: registro binario por dia, sem serie nem carga.
+
+export async function buscarAtividades(perfilId: string): Promise<Atividade[]> {
+  const { data, error } = await supabase
+    .from('atividades')
+    .select('*')
+    .eq('ativa', true)
+    .or(`perfil_id.is.null,perfil_id.eq.${perfilId}`)
+    .order('ordem')
+  if (error) throw error
+  cacheGravar(`atividades:${perfilId}`, data)
+  return data as Atividade[]
+}
+
+export function atividadesEmCache(perfilId: string) {
+  return cacheLer<Atividade[]>(`atividades:${perfilId}`) ?? []
+}
+
+export async function buscarRegistrosDeAtividade(
+  perfilId: string,
+  desde: Date,
+): Promise<AtividadeRegistro[]> {
+  const { data, error } = await supabase
+    .from('atividade_registros')
+    .select('atividade_id, perfil_id, dia, duracao_min')
+    .eq('perfil_id', perfilId)
+    .gte('dia', desde.toISOString().slice(0, 10))
+  if (error) throw error
+  return data as AtividadeRegistro[]
+}
+
+/** Marcar de novo o mesmo dia nao duplica: a chave unica cuida disso. */
+export async function marcarAtividade(
+  atividadeId: string,
+  perfilId: string,
+  dia: string,
+  feito: boolean,
+) {
+  if (!feito) {
+    const { error } = await supabase
+      .from('atividade_registros')
+      .delete()
+      .eq('atividade_id', atividadeId)
+      .eq('perfil_id', perfilId)
+      .eq('dia', dia)
+    if (error) throw error
+    return
+  }
+  const { error } = await supabase
+    .from('atividade_registros')
+    .upsert(
+      { atividade_id: atividadeId, perfil_id: perfilId, dia },
+      { onConflict: 'atividade_id,perfil_id,dia' },
+    )
+  if (error) throw error
+}
+
+export async function salvarAtividade(a: {
+  id?: string; nome: string; emoji: string | null; perfil_id: string | null
+  meta_semanal: number | null; ordem: number
+}) {
+  const { error } = await supabase
+    .from('atividades')
+    .upsert({ ...a, id: a.id ?? crypto.randomUUID() })
+  if (error) throw error
+}
+
+export async function apagarAtividade(id: string) {
+  const { error } = await supabase.from('atividades').delete().eq('id', id)
+  if (error) throw error
 }
 
 // --- plano da semana --------------------------------------------------

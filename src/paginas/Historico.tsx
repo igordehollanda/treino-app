@@ -1,16 +1,21 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useAuth } from '../lib/auth'
 import {
-  buscarExercicios, buscarPerfis, buscarProgressao, buscarSessoes, perfisEmCache,
+  buscarAtividades, buscarExercicios, buscarPerfis, buscarProgressao,
+  buscarRegistrosDeAtividade, buscarSessoes, perfisEmCache,
 } from '../lib/db'
 import GraficoCarga from '../componentes/GraficoCarga'
-import type { Exercicio, Perfil, PontoProgressao, Sessao } from '../lib/tipos'
+import type {
+  Atividade, AtividadeRegistro, Exercicio, Perfil, PontoProgressao, Sessao,
+} from '../lib/tipos'
 
 export default function Historico() {
   const { perfil, ehPersonal } = useAuth()
   const [perfis, setPerfis] = useState<Perfil[]>(perfisEmCache())
   const [vendo, setVendo] = useState<string>(perfil?.id ?? '')
   const [sessoes, setSessoes] = useState<Sessao[]>([])
+  const [atividades, setAtividades] = useState<Atividade[]>([])
+  const [extras, setExtras] = useState<AtividadeRegistro[]>([])
   const [exercicios, setExercicios] = useState<Exercicio[]>([])
   const [exercicioId, setExercicioId] = useState('')
   const [progressao, setProgressao] = useState<PontoProgressao[]>([])
@@ -30,6 +35,10 @@ export default function Historico() {
     // e assim navegar entre meses nao vai a rede.
     void buscarSessoes(vendo, new Date(Date.now() - 400 * 864e5))
       .then(setSessoes)
+      .catch(console.error)
+    void buscarAtividades(vendo).then(setAtividades).catch(console.error)
+    void buscarRegistrosDeAtividade(vendo, new Date(Date.now() - 400 * 864e5))
+      .then(setExtras)
       .catch(console.error)
   }, [vendo])
 
@@ -74,6 +83,8 @@ export default function Historico() {
         <Calendario
           mes={mes}
           sessoes={sessoes}
+          atividades={atividades}
+          extras={extras}
           aoMudarMes={(delta) =>
             setMes((m) => new Date(m.getFullYear(), m.getMonth() + delta, 1))
           }
@@ -127,10 +138,12 @@ function Numero({ rotulo, valor, sufixo }: { rotulo: string; valor: number; sufi
  * se enxerga constancia.
  */
 function Calendario({
-  mes, sessoes, aoMudarMes,
+  mes, sessoes, atividades, extras, aoMudarMes,
 }: {
   mes: Date
   sessoes: Sessao[]
+  atividades: Atividade[]
+  extras: AtividadeRegistro[]
   aoMudarMes: (delta: number) => void
 }) {
   const ano = mes.getFullYear()
@@ -147,6 +160,19 @@ function Calendario({
       if (!doDia.has(d.getDate())) doDia.set(d.getDate(), s.treino_nome.trim()[0] ?? '✓')
     }
   }
+
+  // Extras do mes, agrupados por dia — um dia pode ter mais de um.
+  const emojiDe = new Map(atividades.map((a) => [a.id, a.emoji ?? '•']))
+  const extrasDoDia = new Map<number, string[]>()
+  for (const r of extras) {
+    const [a, mm, dd] = r.dia.split('-').map(Number)
+    if (a === ano && mm === m + 1) {
+      const lista = extrasDoDia.get(dd) ?? []
+      lista.push(emojiDe.get(r.atividade_id) ?? '•')
+      extrasDoDia.set(dd, lista)
+    }
+  }
+  const totalExtras = [...extrasDoDia.values()].reduce((n, l) => n + l.length, 0)
 
   const hoje = new Date()
   const ehMesAtual = hoje.getFullYear() === ano && hoje.getMonth() === m
@@ -166,6 +192,7 @@ function Calendario({
           <p className="text-sm font-bold">{mesPorExtenso(mes)}</p>
           <p className="rotulo mt-0.5">
             {doDia.size} treino{doDia.size === 1 ? '' : 's'}
+            {totalExtras > 0 && ` · ${totalExtras} extra${totalExtras === 1 ? '' : 's'}`}
           </p>
         </div>
         <button
@@ -190,16 +217,19 @@ function Calendario({
         {Array.from({ length: deslocamento }, (_, i) => <div key={`v${i}`} />)}
         {Array.from({ length: diasNoMes }, (_, i) => i + 1).map((dia) => {
           const letra = doDia.get(dia)
+          const marcas = extrasDoDia.get(dia)
           const ehHoje = ehMesAtual && hoje.getDate() === dia
           return (
             <div
               key={dia}
-              className={`flex aspect-square flex-col items-center justify-center rounded-lg ${
+              className={`relative flex aspect-square flex-col items-center justify-center rounded-lg ${
                 letra
                   ? 'bg-feito text-fundo'
-                  : ehHoje
-                    ? 'border-2 border-acento'
-                    : 'bg-elevado/40'
+                  : marcas
+                    ? 'border border-acento/40 bg-elevado'
+                    : ehHoje
+                      ? 'border-2 border-acento'
+                      : 'bg-elevado/40'
               }`}
             >
               <span
@@ -210,6 +240,14 @@ function Calendario({
                 {dia}
               </span>
               {letra && <span className="text-sm font-extrabold leading-tight">{letra}</span>}
+              {marcas && !letra && (
+                <span className="text-sm leading-tight">{marcas.join('')}</span>
+              )}
+              {marcas && letra && (
+                <span className="absolute right-0.5 top-0.5 text-[9px] leading-none">
+                  {marcas.join('')}
+                </span>
+              )}
             </div>
           )
         })}
