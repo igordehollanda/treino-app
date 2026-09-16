@@ -1,0 +1,30 @@
+@import 'tailwindcss';
+
+@theme {
+  --color-fundo: #0f172a;
+  --color-cartao: #1e293b;
+  --color-borda: #334155;
+}
+
+html {
+  color-scheme: dark;
+  /* Impede o zoom-ao-focar do iOS nos campos de carga. */
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  background: var(--color-fundo);
+  color: #f1f5f9;
+  overscroll-behavior-y: contain;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Campos numericos sem as setinhas: na academia o teclado e o dedo bastam. */
+input[type='number']::-webkit-inner-spin-button,
+input[type='number']::-webkit-outer-spin-button {
+  appearance: none;
+  margin: 0;
+}
+input[type='number'] {
+  -moz-appearance: textfield;
+}

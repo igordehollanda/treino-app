@@ -1,0 +1,368 @@
+import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useNavigate, useParams } from 'react-router-dom'
+import { useAuth } from '../lib/auth'
+import { supabase } from '../lib/supabase'
+import {
+  apagarSerie, buscarSeriesDaSessao, buscarTreinos, buscarUltimasCargas, cargasEmCache,
+  finalizarSessao, registrarSerie, sessaoLocal, treinosEmCache,
+} from '../lib/db'
+import type { Sessao, SerieRegistro, TreinoCompleto, TreinoExercicio, UltimaCarga } from '../lib/tipos'
+
+type Marcada = { carga: string; reps: string; feita: boolean }
+const chave = (nome: string, serie: number) => `${nome}::${serie}`
+
+export default function Execucao() {
+  const { sessaoId } = useParams()
+  const { perfil } = useAuth()
+  const navegar = useNavigate()
+
+  const [sessao, setSessao] = useState<Sessao | null>(null)
+  const [treino, setTreino] = useState<TreinoCompleto | null>(null)
+  const [cargas, setCargas] = useState<Record<string, UltimaCarga>>(
+    perfil ? cargasEmCache(perfil.id) : {},
+  )
+  const [marcadas, setMarcadas] = useState<Record<string, Marcada>>({})
+  const [descanso, setDescanso] = useState<number | null>(null)
+  const [finalizando, setFinalizando] = useState(false)
+
+  // 1. Carrega a sessao e o que ja foi registrado nela.
+  useEffect(() => {
+    if (!sessaoId || !perfil) return
+
+    // O local responde na hora; o servidor so corrige se ja tiver a linha.
+    setSessao(sessaoLocal(sessaoId))
+    void supabase
+      .from('sessoes').select('*').eq('id', sessaoId).maybeSingle()
+      .then(({ data }) => {
+        if (data) setSessao(data as Sessao)
+      })
+
+    void buscarUltimasCargas(perfil.id).then(setCargas).catch(console.error)
+
+    void buscarSeriesDaSessao(sessaoId)
+      .then((series) => setMarcadas(reidratar(series)))
+      .catch(console.error)
+  }, [sessaoId, perfil])
+
+  // 2. Com a sessao em maos, acha o treino dela. O cache responde primeiro
+  //    para a tela abrir na hora; a rede corrige em seguida, se houver.
+  useEffect(() => {
+    const alvo = sessao?.treino_id
+    if (!alvo) return
+    setTreino(treinosEmCache().find((t) => t.id === alvo) ?? null)
+    void buscarTreinos()
+      .then((ts) => {
+        const t = ts.find((x) => x.id === alvo)
+        if (t) setTreino(t)
+      })
+      .catch(console.error)
+  }, [sessao])
+
+  // Contagem regressiva do descanso.
+  useEffect(() => {
+    if (descanso === null) return
+    if (descanso <= 0) {
+      setDescanso(null)
+      vibrar()
+      return
+    }
+    const t = setTimeout(() => setDescanso((s) => (s === null ? null : s - 1)), 1000)
+    return () => clearTimeout(t)
+  }, [descanso])
+
+  const meusItens = useMemo(
+    () =>
+      (treino?.itens ?? []).filter(
+        (i) => i.perfil_id === null || i.perfil_id === perfil?.id,
+      ),
+    [treino, perfil],
+  )
+
+  const totalSeries = meusItens.reduce((n, i) => n + i.series, 0)
+  const feitas = Object.values(marcadas).filter((m) => m.feita).length
+
+  const alterar = useCallback((k: string, campo: 'carga' | 'reps', valor: string) => {
+    setMarcadas((m) => {
+      const atual = m[k] ?? { carga: '', reps: '', feita: false }
+      return { ...m, [k]: { ...atual, [campo]: valor } }
+    })
+  }, [])
+
+  const alternar = useCallback(
+    async (item: TreinoExercicio, serie: number, padraoCarga: string, padraoReps: string) => {
+      if (!perfil || !sessaoId) return
+      const nome = item.exercicios?.nome ?? 'Exercicio'
+      const k = chave(nome, serie)
+      const atual = marcadas[k]
+
+      if (atual?.feita) {
+        setMarcadas((m) => ({ ...m, [k]: { ...atual, feita: false } }))
+        await apagarSerie(sessaoId, nome, serie).catch(console.error)
+        return
+      }
+
+      const carga = atual?.carga || padraoCarga
+      const reps = atual?.reps || padraoReps
+      setMarcadas((m) => ({ ...m, [k]: { carga, reps, feita: true } }))
+      vibrar()
+      if (item.descanso_seg > 0) setDescanso(item.descanso_seg)
+
+      await registrarSerie({
+        sessao_id: sessaoId,
+        perfil_id: perfil.id,
+        exercicio_id: item.exercicio_id,
+        exercicio_nome: nome,
+        serie,
+        carga_kg: carga === '' ? null : Number(carga.replace(',', '.')),
+        reps: reps === '' ? null : Number(reps),
+        registrada_em: new Date().toISOString(),
+      })
+    },
+    [marcadas, perfil, sessaoId],
+  )
+
+  async function terminar() {
+    if (!sessao) return
+    setFinalizando(true)
+    await finalizarSessao(sessao, null)
+    navegar('/', { replace: true })
+  }
+
+  if (!treino || !sessao) {
+    return <div className="p-8 text-center text-slate-400">carregando treino...</div>
+  }
+
+  // A barra de descanso flutua por cima: o espaco extra embaixo evita que
+  // ela cubra o botao de finalizar.
+  return (
+    <div className={descanso !== null ? 'min-h-dvh pb-44' : 'min-h-dvh pb-24'}>
+      <header className="sticky top-0 z-10 border-b border-borda bg-fundo/95 px-5 py-3 backdrop-blur">
+        <div className="mx-auto flex max-w-lg items-center justify-between gap-3">
+          <div className="min-w-0">
+            <h1 className="truncate text-lg font-bold">{treino.nome}</h1>
+            <p className="text-xs text-slate-400">
+              {feitas} de {totalSeries} series
+            </p>
+          </div>
+          <button
+            onClick={() => navegar('/')}
+            className="shrink-0 text-sm text-slate-400"
+          >
+            voltar
+          </button>
+        </div>
+        <div className="mx-auto mt-2 h-1 max-w-lg overflow-hidden rounded-full bg-borda">
+          <div
+            className="h-full bg-emerald-500 transition-all duration-300"
+            style={{ width: `${totalSeries ? (feitas / totalSeries) * 100 : 0}%` }}
+          />
+        </div>
+      </header>
+
+      <div className="mx-auto flex max-w-lg flex-col gap-4 p-5">
+        {meusItens.map((item) => (
+          <CartaoExercicio
+            key={item.id}
+            item={item}
+            soMeu={item.perfil_id !== null}
+            ultima={cargas[item.exercicio_id]}
+            marcadas={marcadas}
+            aoAlterar={alterar}
+            aoAlternar={alternar}
+          />
+        ))}
+
+        <button
+          onClick={() => void terminar()}
+          disabled={finalizando}
+          className="mt-2 rounded-2xl bg-emerald-600 py-4 text-base font-semibold active:bg-emerald-700 disabled:opacity-50"
+        >
+          {finalizando ? 'Salvando...' : 'Finalizar treino'}
+        </button>
+      </div>
+
+      {descanso !== null && (
+        <BarraDescanso
+          segundos={descanso}
+          aoPular={() => setDescanso(null)}
+          aoSomar={() => setDescanso((s) => (s ?? 0) + 30)}
+        />
+      )}
+    </div>
+  )
+}
+
+function CartaoExercicio({
+  item, soMeu, ultima, marcadas, aoAlterar, aoAlternar,
+}: {
+  item: TreinoExercicio
+  soMeu: boolean
+  ultima?: UltimaCarga
+  marcadas: Record<string, Marcada>
+  aoAlterar: (k: string, campo: 'carga' | 'reps', v: string) => void
+  aoAlternar: (i: TreinoExercicio, s: number, c: string, r: string) => Promise<void>
+}) {
+  const nome = item.exercicios?.nome ?? 'Exercicio'
+  const padraoCarga = ultima?.carga_kg != null ? String(ultima.carga_kg) : ''
+  const padraoReps = ultima?.reps != null ? String(ultima.reps) : primeiroNumero(item.reps)
+
+  return (
+    <section className="rounded-2xl border border-borda bg-cartao p-4">
+      <div className="flex items-start justify-between gap-2">
+        <div className="min-w-0">
+          <h2 className="font-semibold leading-tight">{nome}</h2>
+          <p className="mt-0.5 text-sm text-slate-400">
+            {item.series} x {item.reps}
+            {item.descanso_seg > 0 && ` · ${item.descanso_seg}s`}
+          </p>
+        </div>
+        {soMeu && (
+          <span className="shrink-0 rounded-full bg-blue-500/15 px-2 py-0.5 text-[10px] font-medium text-blue-400">
+            so seu
+          </span>
+        )}
+      </div>
+
+      {item.observacao && (
+        <p className="mt-2 rounded-lg bg-slate-800/60 px-3 py-2 text-sm text-slate-300">
+          {item.observacao}
+        </p>
+      )}
+
+      {ultima && (
+        <p className="mt-2 text-xs text-slate-500">
+          ultima vez: {ultima.carga_kg}kg
+          {ultima.reps ? ` x ${ultima.reps}` : ''} · {dataCurta(ultima.registrada_em)}
+        </p>
+      )}
+
+      <div className="mt-3 flex flex-col gap-2">
+        {Array.from({ length: item.series }, (_, i) => i + 1).map((serie) => {
+          const k = chave(nome, serie)
+          const m = marcadas[k]
+          const feita = m?.feita ?? false
+          return (
+            <div key={serie} className="flex items-center gap-2">
+              <span className="w-6 shrink-0 text-center text-sm text-slate-500">{serie}</span>
+
+              <Campo
+                valor={m?.carga ?? ''}
+                placeholder={padraoCarga || '-'}
+                sufixo="kg"
+                feita={feita}
+                aoMudar={(v) => aoAlterar(k, 'carga', v)}
+              />
+              <Campo
+                valor={m?.reps ?? ''}
+                placeholder={padraoReps || '-'}
+                sufixo="reps"
+                feita={feita}
+                aoMudar={(v) => aoAlterar(k, 'reps', v)}
+              />
+
+              <button
+                onClick={() => void aoAlternar(item, serie, padraoCarga, padraoReps)}
+                aria-label={feita ? `Desmarcar serie ${serie}` : `Concluir serie ${serie}`}
+                className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-xl text-xl font-bold transition-colors ${
+                  feita
+                    ? 'bg-emerald-600 text-white'
+                    : 'border border-borda bg-slate-800 text-slate-500'
+                }`}
+              >
+                ✓
+              </button>
+            </div>
+          )
+        })}
+      </div>
+    </section>
+  )
+}
+
+function Campo({
+  valor, placeholder, sufixo, feita, aoMudar,
+}: {
+  valor: string
+  placeholder: string
+  sufixo: string
+  feita: boolean
+  aoMudar: (v: string) => void
+}) {
+  return (
+    <div className="relative flex-1">
+      <input
+        inputMode="decimal"
+        value={valor}
+        placeholder={placeholder}
+        onChange={(e) => aoMudar(e.target.value)}
+        className={`w-full rounded-xl border py-3 pl-3 pr-9 text-base outline-none focus:border-blue-500 ${
+          feita ? 'border-emerald-600/40 bg-emerald-950/30' : 'border-borda bg-slate-800'
+        }`}
+      />
+      <span className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-xs text-slate-500">
+        {sufixo}
+      </span>
+    </div>
+  )
+}
+
+function BarraDescanso({
+  segundos, aoPular, aoSomar,
+}: {
+  segundos: number
+  aoPular: () => void
+  aoSomar: () => void
+}) {
+  return (
+    <div
+      className="fixed inset-x-0 bottom-0 z-20 border-t border-borda bg-cartao px-5 py-3"
+      style={{ paddingBottom: 'calc(0.75rem + env(safe-area-inset-bottom))' }}
+    >
+      <div className="mx-auto flex max-w-lg items-center gap-3">
+        <div className="flex-1">
+          <p className="text-xs text-slate-400">Descanso</p>
+          <p className="font-mono text-2xl font-bold tabular-nums">
+            {String(Math.floor(segundos / 60)).padStart(2, '0')}:
+            {String(segundos % 60).padStart(2, '0')}
+          </p>
+        </div>
+        <button onClick={aoSomar} className="rounded-xl bg-slate-700 px-4 py-2.5 text-sm font-medium">
+          +30s
+        </button>
+        <button onClick={aoPular} className="rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-medium">
+          Pular
+        </button>
+      </div>
+    </div>
+  )
+}
+
+function reidratar(series: SerieRegistro[]) {
+  const m: Record<string, Marcada> = {}
+  for (const s of series) {
+    m[chave(s.exercicio_nome, s.serie)] = {
+      carga: s.carga_kg != null ? String(s.carga_kg) : '',
+      reps: s.reps != null ? String(s.reps) : '',
+      feita: true,
+    }
+  }
+  return m
+}
+
+/** "10-12" -> "10". Da um chute util quando nao ha historico. */
+function primeiroNumero(reps: string) {
+  return reps.match(/\d+/)?.[0] ?? ''
+}
+
+function dataCurta(iso: string) {
+  return new Date(iso).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })
+}
+
+function vibrar() {
+  try {
+    navigator.vibrate?.(40)
+  } catch {
+    /* navegador sem vibracao */
+  }
+}
+
