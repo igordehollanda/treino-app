@@ -135,25 +135,45 @@ Esta etapa e o que torna o app privado. **Nao pule.**
 
 No menu lateral: **Authentication** → **Sign In / Providers**.
 
-1. Em **Auth Providers**, confirme que **Email** esta **habilitado**.
-2. Dentro de Email, deixe assim:
+### 3.1 — O provedor Email
 
-   | Opcao | Valor |
-   |---|---|
-   | **Enable email provider** | ligado |
-   | **Confirm email** | ligado |
-   | **Secure email change** | ligado |
+Na lista **Auth Providers**, abra **Email** e confirme apenas:
 
-3. Ainda em Authentication, procure a secao **Sign Up** (pode estar em
-   *Sign In / Providers* ou em *Policies*, dependendo da versao do
-   painel) e **DESLIGUE**:
+> **Enable email provider** → **ligado**
 
-   > **Allow new users to sign up** → **desligado**
+**Nao mexa no resto desse bloco.** Tamanho minimo de senha, requisitos
+de caractere, *secure password change*, *require current password* — nada
+disso nos afeta: ninguem usa senha, o login e por link no e-mail.
 
-4. Clique em **Save**.
+Dois valores desse bloco que vale conhecer, ambos bons no padrao:
 
-A partir daqui ninguem cria conta. Mesmo que descubram o endereco do
-app, a tela de login nao serve para nada sem um usuario ja cadastrado.
+| Campo | Padrao | O que e |
+|---|---|---|
+| **Email OTP expiration** | `3600` | o link do e-mail vale 1 hora |
+| **Email OTP length** | `8` | tamanho do codigo alternativo ao link |
+
+> Se a sua versao do painel mostrar **Confirm email**, pode deixar ligado.
+> Ele so age em cadastro novo — que vai estar desligado no proximo passo,
+> entao nao faz diferenca.
+
+### 3.2 — Desligar o cadastro (o passo que importa)
+
+O toggle **nao fica** dentro do bloco Email. Role ate o **topo** da
+pagina *Sign In / Providers* e procure a secao **User Signups**, antes da
+lista de provedores:
+
+> **Allow new users to sign up** → **DESLIGADO**
+
+Clique em **Save**.
+
+Em algumas versoes do painel essa opcao aparece em
+**Authentication → Settings**.
+
+**Quanto isso importa.** O app manda `shouldCreateUser: false` no codigo,
+entao pela tela de login ninguem cria conta mesmo com o toggle ligado.
+Desligar fecha a porta de quem chamasse a API do Supabase direto, por
+fora do app. Vale fazer — mas se a sua versao do painel nao oferecer a
+opcao, isso sozinho nao deixa o app aberto.
 
 ---
 
@@ -416,7 +436,7 @@ salvo — nao precisa pedir link toda vez.
 - [ ] As 3 migrations rodaram sem erro
 - [ ] 7 tabelas, todas com politica de RLS
 - [ ] Security: Data API ligado, RLS automatica ligada
-- [ ] **Allow new users to sign up: DESLIGADO**
+- [ ] **Allow new users to sign up: DESLIGADO** (secao *User Signups*)
 - [ ] 3 usuarios criados com *Auto Confirm*
 - [ ] 3 linhas em `perfis` (2 alunos + 1 personal)
 - [ ] `.env` preenchido com a chave **anon**, nunca a `service_role`
