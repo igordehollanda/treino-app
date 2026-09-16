@@ -277,3 +277,30 @@ where treino_id = 'aaaa0004-0000-4000-8000-000000000004'
 -- A observacao textual vira redundante: a tela ja mostra que e bi-set.
 update treino_exercicios set observacao = null
 where grupo is not null and observacao like 'Bi-set%';
+
+-- ---------------------------------------------------------------------
+-- 7. Plano da semana: seg A, ter B, qua C, qui D, sex E
+--    (requer a migration 0006)
+-- ---------------------------------------------------------------------
+delete from plano_semanal;
+
+-- Segunda a quinta: os mesmos quatro treinos para os dois.
+insert into plano_semanal (perfil_id, dia_semana, treino_id)
+select p.id, d.dia, d.treino::uuid
+from perfis p,
+     (values
+       (1, 'aaaa0001-0000-4000-8000-000000000001'),
+       (2, 'aaaa0002-0000-4000-8000-000000000002'),
+       (3, 'aaaa0003-0000-4000-8000-000000000003'),
+       (4, 'aaaa0004-0000-4000-8000-000000000004')
+     ) as d(dia, treino)
+where p.papel = 'aluno';
+
+-- Sexta: o treino E de cada um, que sao treinos diferentes.
+insert into plano_semanal (perfil_id, dia_semana, treino_id)
+select ta.perfil_id, 5, ta.treino_id
+from treino_alunos ta
+where ta.treino_id in ('aaaa0005-0000-4000-8000-000000000005',
+                       'aaaa0006-0000-4000-8000-000000000006');
+
+-- Sabado e domingo ficam sem linha: descanso.

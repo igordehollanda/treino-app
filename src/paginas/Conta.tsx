@@ -1,7 +1,17 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../lib/auth'
 import { supabase } from '../lib/supabase'
+import {
+  buscarPlano, buscarTreinos, definirDiaDoPlano, planoEmCache, treinosEmCache,
+} from '../lib/db'
+import type { TreinoCompleto } from '../lib/tipos'
+
+// Segunda primeiro: e como uma semana de treino e pensada.
+const DIAS: [number, string][] = [
+  [1, 'Segunda'], [2, 'Terça'], [3, 'Quarta'], [4, 'Quinta'],
+  [5, 'Sexta'], [6, 'Sábado'], [0, 'Domingo'],
+]
 
 /** Trocar a propria senha sem depender de e-mail chegar. */
 export default function Conta() {
@@ -90,6 +100,8 @@ export default function Conta() {
         )}
       </form>
 
+      <PlanoDaSemana perfilId={perfil?.id ?? ''} ehPersonal={perfil?.papel === 'personal'} />
+
       <button
         onClick={() => void sair()}
         className="mt-8 w-full rounded-xl border border-borda py-3 text-sm text-suave"
@@ -97,5 +109,72 @@ export default function Conta() {
         Sair
       </button>
     </div>
+  )
+}
+
+/** Que treino em cada dia. Dia sem treino e descanso. */
+function PlanoDaSemana({ perfilId, ehPersonal }: { perfilId: string; ehPersonal: boolean }) {
+  const [treinos, setTreinos] = useState<TreinoCompleto[]>(treinosEmCache())
+  const [plano, setPlano] = useState<Record<number, string>>(planoEmCache(perfilId))
+  const [salvando, setSalvando] = useState<number | null>(null)
+
+  useEffect(() => {
+    if (!perfilId) return
+    void buscarTreinos().then(setTreinos).catch(console.error)
+    void buscarPlano(perfilId).then(setPlano).catch(console.error)
+  }, [perfilId])
+
+  const meus = treinos.filter(
+    (t) => t.ativo && (ehPersonal || t.alunos.includes(perfilId)),
+  )
+
+  async function mudar(dia: number, treinoId: string) {
+    setSalvando(dia)
+    const alvo = treinoId || null
+    // Otimista: o select responde na hora, a rede confirma depois.
+    setPlano((p) => {
+      const novo = { ...p }
+      if (alvo) novo[dia] = alvo
+      else delete novo[dia]
+      return novo
+    })
+    try {
+      await definirDiaDoPlano(perfilId, dia, alvo)
+    } catch (e) {
+      console.error(e)
+      await buscarPlano(perfilId).then(setPlano).catch(console.error)
+    } finally {
+      setSalvando(null)
+    }
+  }
+
+  return (
+    <section className="mt-8">
+      <h2 className="text-sm font-medium text-texto">Plano da semana</h2>
+      <p className="mt-1 text-xs text-fraco">
+        É daqui que a tela Hoje sabe qual é o treino do dia.
+      </p>
+
+      <div className="mt-3 flex flex-col gap-1.5">
+        {DIAS.map(([dia, nome]) => (
+          <label key={dia} className="flex items-center gap-3">
+            <span className="w-20 shrink-0 text-sm text-suave">{nome}</span>
+            <select
+              value={plano[dia] ?? ''}
+              disabled={salvando === dia}
+              onChange={(e) => void mudar(dia, e.target.value)}
+              className="min-w-0 flex-1 rounded-xl border border-borda bg-superficie px-3 py-2.5 text-sm outline-none focus:border-acento disabled:opacity-50"
+            >
+              <option value="">descanso</option>
+              {meus.map((t) => (
+                <option key={t.id} value={t.id}>
+                  {t.nome}
+                </option>
+              ))}
+            </select>
+          </label>
+        ))}
+      </div>
+    </section>
   )
 }

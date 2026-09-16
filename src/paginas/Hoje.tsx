@@ -3,8 +3,8 @@ import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../lib/auth'
 import { supabase } from '../lib/supabase'
 import {
-  buscarSemanaAtual, buscarSessaoAberta, buscarSessoes, buscarTreinos, iniciarSessao,
-  semanaEmCache, treinosEmCache,
+  buscarPlano, buscarSemanaAtual, buscarSessaoAberta, buscarSessoes, buscarTreinos,
+  iniciarSessao, planoEmCache, semanaEmCache, treinosEmCache,
 } from '../lib/db'
 import type { SemanaCiclo, Sessao, TreinoCompleto } from '../lib/tipos'
 
@@ -15,6 +15,9 @@ export default function Hoje() {
   const [sessoes, setSessoes] = useState<Sessao[]>([])
   const [aberta, setAberta] = useState<Sessao | null>(null)
   const [semana, setSemana] = useState<SemanaCiclo | null>(semanaEmCache())
+  const [plano, setPlano] = useState<Record<number, string>>(
+    perfil ? planoEmCache(perfil.id) : {},
+  )
 
   useEffect(() => {
     if (!perfil) return
@@ -23,6 +26,7 @@ export default function Hoje() {
     void buscarSessoes(perfil.id, trintaDias).then(setSessoes).catch(console.error)
     void buscarSessaoAberta(perfil.id).then(setAberta).catch(console.error)
     void buscarSemanaAtual().then(setSemana).catch(console.error)
+    void buscarPlano(perfil.id).then(setPlano).catch(console.error)
 
     // O personal edita no celular dele; aqui a lista se atualiza sozinha.
     const canal = supabase
@@ -40,7 +44,15 @@ export default function Hoje() {
     [treinos, ehPersonal, perfil],
   )
 
-  // Sugestao simples e util: o treino que voce fez ha mais tempo.
+  // O plano manda. Sem plano, cai na heuristica antiga.
+  const doPlano = useMemo(
+    () => meusTreinos.find((t) => t.id === plano[new Date().getDay()]) ?? null,
+    [meusTreinos, plano],
+  )
+  const temPlano = Object.keys(plano).length > 0
+  const descansoHoje = temPlano && !doPlano
+
+  // Sem plano: o treino que voce fez ha mais tempo.
   const sugerido = useMemo(() => {
     if (meusTreinos.length === 0) return null
     const ultimaVez = new Map<string, number>()
@@ -56,7 +68,7 @@ export default function Hoje() {
 
   // Com uma sessao em andamento, nada disputa atencao com ela: todos os
   // treinos viram linha.
-  const principal = aberta ? null : sugerido
+  const principal = aberta ? null : (doPlano ?? (temPlano ? null : sugerido))
   const resto = meusTreinos.filter((t) => t.id !== principal?.id)
 
   async function comecar(treino: TreinoCompleto) {
@@ -82,7 +94,7 @@ export default function Hoje() {
 
       <div className="md:grid md:grid-cols-2 md:items-start md:gap-4">
         {semana && <FaixaDoCiclo semana={semana} />}
-        <FaixaDaSemana sessoes={sessoes} />
+        <Semana plano={plano} treinos={meusTreinos} sessoes={sessoes} />
       </div>
 
       {aberta && (
@@ -103,10 +115,20 @@ export default function Hoje() {
         </p>
       ) : (
         <>
+          {descansoHoje && !aberta && (
+            <div className="mb-3 rounded-2xl border border-borda bg-superficie p-4">
+              <p className="rotulo text-feito">{diaPorExtenso(new Date())} · descanso</p>
+              <p className="mt-1.5 text-sm text-suave">
+                Hoje não tem treino no plano. Se quiser adiantar algum, é só escolher abaixo.
+              </p>
+            </div>
+          )}
+
           {principal && (
             <CartaoPrincipal
               treino={principal}
               perfilId={perfil?.id ?? ''}
+              hoje={principal.id === doPlano?.id}
               ultima={sessoes.find((s) => s.treino_id === principal.id)}
               aoComecar={() => void comecar(principal)}
             />
@@ -144,17 +166,20 @@ function custo(treino: TreinoCompleto, perfilId: string) {
 
 /** O treino da vez. Unico com botao grande — um alvo obvio por tela. */
 function CartaoPrincipal({
-  treino, perfilId, ultima, aoComecar,
+  treino, perfilId, hoje, ultima, aoComecar,
 }: {
   treino: TreinoCompleto
   perfilId: string
+  hoje: boolean
   ultima?: Sessao
   aoComecar: () => void
 }) {
   const c = custo(treino, perfilId)
   return (
     <div className="mb-3 rounded-2xl border border-acento/60 bg-superficie p-4">
-      <p className="rotulo text-acento">Próximo treino</p>
+      <p className="rotulo text-acento">
+        {hoje ? `${diaPorExtenso(new Date())} · treino de hoje` : 'Próximo treino'}
+      </p>
       <h2 className="mt-1.5 text-xl font-extrabold leading-tight">{treino.nome}</h2>
       <p className="mt-1.5 text-sm text-suave">
         <span className="font-bold text-texto">{c.exercicios}</span> exercícios ·{' '}
@@ -229,39 +254,78 @@ function FaixaDoCiclo({ semana }: { semana: SemanaCiclo }) {
   )
 }
 
-/** Sete dias, com bolinha cheia no que treinou. Frequencia de relance. */
-function FaixaDaSemana({ sessoes }: { sessoes: Sessao[] }) {
+/**
+ * A semana de verdade: segunda a domingo, com a letra do treino
+ * planejado em cada dia e o que ja foi feito.
+ *
+ * Substitui a faixa anterior de "ultimos 7 dias", que mostrava sete
+ * circulos sem dizer o que era para ter acontecido em cada um.
+ */
+function Semana({
+  plano, treinos, sessoes,
+}: {
+  plano: Record<number, string>
+  treinos: TreinoCompleto[]
+  sessoes: Sessao[]
+}) {
+  const hoje = new Date()
+  hoje.setHours(0, 0, 0, 0)
+  // Semana comecando na segunda: e como o plano de treino e pensado.
+  const segunda = new Date(hoje)
+  segunda.setDate(hoje.getDate() - ((hoje.getDay() + 6) % 7))
+
+  const feitos = new Set(sessoes.map((s) => s.iniciada_em.slice(0, 10)))
+  const letraDe = (treinoId?: string) =>
+    treinos.find((t) => t.id === treinoId)?.nome.trim()[0] ?? null
+
   const dias = Array.from({ length: 7 }, (_, i) => {
-    const d = new Date()
-    d.setHours(0, 0, 0, 0)
-    d.setDate(d.getDate() - (6 - i))
+    const d = new Date(segunda)
+    d.setDate(segunda.getDate() + i)
     return d
   })
-  const treinados = new Set(sessoes.map((s) => s.iniciada_em.slice(0, 10)))
-  const total = dias.filter((d) => treinados.has(chaveDia(d))).length
+  const total = dias.filter((d) => feitos.has(chaveDia(d))).length
+  const previstos = dias.filter((d) => plano[d.getDay()]).length
 
   return (
-    <div className="mb-6 rounded-2xl border border-borda bg-superficie p-4">
+    <div className="mb-3 rounded-2xl border border-borda bg-superficie p-4">
       <div className="mb-3 flex items-baseline justify-between">
-        <span className="rotulo">Últimos 7 dias</span>
+        <span className="rotulo">Esta semana</span>
         <span className="text-sm font-bold">
-          {total} treino{total === 1 ? '' : 's'}
+          {total}
+          {previstos > 0 && <span className="font-medium text-suave">/{previstos}</span>}
         </span>
       </div>
-      <div className="flex justify-between">
+
+      <div className="flex justify-between gap-1">
         {dias.map((d) => {
-          const fez = treinados.has(chaveDia(d))
+          const letra = letraDe(plano[d.getDay()])
+          const fez = feitos.has(chaveDia(d))
+          const ehHoje = chaveDia(d) === chaveDia(hoje)
+          const passou = d < hoje
+
           return (
-            <div key={d.toISOString()} className="flex flex-col items-center gap-1.5">
-              <span className="text-[10px] font-semibold uppercase text-fraco">
-                {['dom', 'seg', 'ter', 'qua', 'qui', 'sex', 'sáb'][d.getDay()]}
-              </span>
-              <div
-                className={`flex h-7 w-7 items-center justify-center rounded-lg text-[11px] font-bold ${
-                  fez ? 'bg-feito text-fundo' : 'border border-borda text-fraco/70'
+            <div key={d.toISOString()} className="flex flex-1 flex-col items-center gap-1.5">
+              <span
+                className={`text-[10px] font-semibold uppercase ${
+                  ehHoje ? 'text-acento' : 'text-fraco'
                 }`}
               >
-                {d.getDate()}
+                {['seg', 'ter', 'qua', 'qui', 'sex', 'sáb', 'dom'][(d.getDay() + 6) % 7]}
+              </span>
+              <div
+                className={`flex h-9 w-full items-center justify-center rounded-lg text-sm font-extrabold ${
+                  fez
+                    ? 'bg-feito text-fundo'
+                    : ehHoje
+                      ? 'border-2 border-acento text-acento'
+                      : letra
+                        ? passou
+                          ? 'border border-borda text-fraco/70'
+                          : 'border border-borda-forte text-suave'
+                        : 'text-fraco/70'
+                }`}
+              >
+                {letra ?? '–'}
               </div>
             </div>
           )
@@ -273,6 +337,12 @@ function FaixaDaSemana({ sessoes }: { sessoes: Sessao[] }) {
 
 const chaveDia = (d: Date) =>
   `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+
+/** "Terça-feira", com maiuscula, para abrir a frase do cartao. */
+function diaPorExtenso(d: Date) {
+  const nome = d.toLocaleDateString('pt-BR', { weekday: 'long' })
+  return nome.charAt(0).toUpperCase() + nome.slice(1)
+}
 
 function saudacao() {
   const h = new Date().getHours()

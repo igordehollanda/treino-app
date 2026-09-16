@@ -193,6 +193,50 @@ export function cargasEmCache(perfilId: string) {
   return cacheLer<Record<string, UltimaCarga>>(`cargas:${perfilId}`) ?? {}
 }
 
+// --- plano da semana --------------------------------------------------
+// dia_semana segue o getDay() do JS: 0 = domingo. Dia ausente = descanso.
+
+export async function buscarPlano(perfilId: string): Promise<Record<number, string>> {
+  const { data, error } = await supabase
+    .from('plano_semanal')
+    .select('dia_semana, treino_id')
+    .eq('perfil_id', perfilId)
+  if (error) throw error
+
+  const plano: Record<number, string> = {}
+  for (const r of data ?? []) plano[r.dia_semana as number] = r.treino_id as string
+  cacheGravar(`plano:${perfilId}`, plano)
+  return plano
+}
+
+export function planoEmCache(perfilId: string) {
+  return cacheLer<Record<number, string>>(`plano:${perfilId}`) ?? {}
+}
+
+/** treinoId null = aquele dia vira descanso. */
+export async function definirDiaDoPlano(
+  perfilId: string,
+  dia: number,
+  treinoId: string | null,
+) {
+  if (treinoId === null) {
+    const { error } = await supabase
+      .from('plano_semanal')
+      .delete()
+      .eq('perfil_id', perfilId)
+      .eq('dia_semana', dia)
+    if (error) throw error
+    return
+  }
+  const { error } = await supabase
+    .from('plano_semanal')
+    .upsert(
+      { perfil_id: perfilId, dia_semana: dia, treino_id: treinoId },
+      { onConflict: 'perfil_id,dia_semana' },
+    )
+  if (error) throw error
+}
+
 export async function buscarSessoes(perfilId: string, desde: Date): Promise<Sessao[]> {
   const { data, error } = await supabase
     .from('sessoes')
