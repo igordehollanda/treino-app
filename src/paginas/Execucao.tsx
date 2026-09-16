@@ -3,16 +3,23 @@ import { useNavigate, useParams } from 'react-router-dom'
 import { useAuth } from '../lib/auth'
 import { supabase } from '../lib/supabase'
 import {
-  apagarSerie, buscarSemanaAtual, buscarSeriesDaSessao, buscarTreinos, buscarUltimasCargas,
-  cargasEmCache, finalizarSessao, registrarSerie, semanaEmCache, sessaoLocal, treinosEmCache,
+  apagarSerie, buscarProgressao, buscarSemanaAtual, buscarSeriesDaSessao, buscarTreinos,
+  buscarUltimasCargas, cargasEmCache, finalizarSessao, registrarSerie, semanaEmCache,
+  sessaoLocal, treinosEmCache,
 } from '../lib/db'
 import { repsDoDia } from '../lib/periodizacao'
+import GraficoCarga from '../componentes/GraficoCarga'
 import type {
-  SemanaCiclo, Sessao, SerieRegistro, TreinoCompleto, TreinoExercicio, UltimaCarga,
+  PontoProgressao, SemanaCiclo, Sessao, SerieRegistro, TreinoCompleto, TreinoExercicio,
+  UltimaCarga,
 } from '../lib/tipos'
 
-type Marcada = { carga: string; reps: string; feita: boolean }
+type Marcada = { carga: string; reps: string; rir: number | null; feita: boolean }
+const vazia: Marcada = { carga: '', reps: '', rir: null, feita: false }
 const chave = (nome: string, serie: number) => `${nome}::${serie}`
+
+/** Exercicio solo ou um bi-set: a tela trata os dois pelo mesmo caminho. */
+type Bloco = { id: string; biset: boolean; itens: TreinoExercicio[] }
 
 export default function Execucao() {
   const { sessaoId } = useParams()
@@ -28,8 +35,9 @@ export default function Execucao() {
   const [semana, setSemana] = useState<SemanaCiclo | null>(semanaEmCache())
   const [descanso, setDescanso] = useState<number | null>(null)
   const [reabertos, setReabertos] = useState<Set<string>>(new Set())
-  const refs = useRef<Record<string, HTMLElement | null>>({})
+  const [painel, setPainel] = useState<string | null>(null)
   const [finalizando, setFinalizando] = useState(false)
+  const refs = useRef<Record<string, HTMLElement | null>>({})
 
   // 1. Carrega a sessao e o que ja foi registrado nela.
   useEffect(() => {
@@ -45,14 +53,12 @@ export default function Execucao() {
 
     void buscarUltimasCargas(perfil.id).then(setCargas).catch(console.error)
     void buscarSemanaAtual().then(setSemana).catch(console.error)
-
     void buscarSeriesDaSessao(sessaoId)
       .then((series) => setMarcadas(reidratar(series)))
       .catch(console.error)
   }, [sessaoId, perfil])
 
-  // 2. Com a sessao em maos, acha o treino dela. O cache responde primeiro
-  //    para a tela abrir na hora; a rede corrige em seguida, se houver.
+  // 2. Com a sessao em maos, acha o treino dela.
   useEffect(() => {
     const alvo = sessao?.treino_id
     if (!alvo) return
@@ -70,7 +76,7 @@ export default function Execucao() {
     if (descanso === null) return
     if (descanso <= 0) {
       setDescanso(null)
-      vibrar()
+      vibrar([60, 40, 60])
       return
     }
     const t = setTimeout(() => setDescanso((s) => (s === null ? null : s - 1)), 1000)
@@ -78,54 +84,69 @@ export default function Execucao() {
   }, [descanso])
 
   const meusItens = useMemo(
-    () =>
-      (treino?.itens ?? []).filter(
-        (i) => i.perfil_id === null || i.perfil_id === perfil?.id,
-      ),
+    () => (treino?.itens ?? []).filter((i) => i.perfil_id === null || i.perfil_id === perfil?.id),
     [treino, perfil],
   )
+  const blocos = useMemo(() => agrupar(meusItens), [meusItens])
 
   const totalSeries = meusItens.reduce((n, i) => n + i.series, 0)
   const feitas = Object.values(marcadas).filter((m) => m.feita).length
 
-  const concluido = useCallback(
-    (item: TreinoExercicio) => {
-      const nome = item.exercicios?.nome ?? 'Exercício'
-      return Array.from({ length: item.series }, (_, i) => i + 1).every(
-        (n) => marcadas[chave(nome, n)]?.feita,
-      )
-    },
+  const blocoConcluido = useCallback(
+    (bloco: Bloco) =>
+      bloco.itens.every((item) =>
+        Array.from({ length: item.series }, (_, i) => i + 1).every(
+          (n) => marcadas[chave(nomeDe(item), n)]?.feita,
+        ),
+      ),
     [marcadas],
   )
 
   /**
-   * Leva o proximo exercicio pendente para o topo da tela.
-   * E o que evita procurar "onde eu estava" rolando a lista inteira com
-   * a mao suada depois de cada serie.
+   * Leva o proximo bloco pendente para o topo. E o que evita procurar
+   * "onde eu estava" rolando a lista com a mao suada apos cada serie.
    */
   const irParaProximo = useCallback(
-    (atual: TreinoExercicio) => {
-      const i = meusItens.findIndex((x) => x.id === atual.id)
-      const proximo = meusItens.slice(i + 1).find((x) => !concluido(x))
+    (atual: Bloco) => {
+      const i = blocos.findIndex((b) => b.id === atual.id)
+      const proximo = blocos.slice(i + 1).find((b) => !blocoConcluido(b))
       const alvo = refs.current[proximo?.id ?? '']
-      if (alvo) {
-        setTimeout(() => alvo.scrollIntoView({ behavior: 'smooth', block: 'start' }), 350)
-      }
+      if (alvo) setTimeout(() => alvo.scrollIntoView({ behavior: 'smooth', block: 'start' }), 350)
     },
-    [meusItens, concluido],
+    [blocos, blocoConcluido],
   )
 
   const alterar = useCallback((k: string, campo: 'carga' | 'reps', valor: string) => {
-    setMarcadas((m) => {
-      const atual = m[k] ?? { carga: '', reps: '', feita: false }
-      return { ...m, [k]: { ...atual, [campo]: valor } }
-    })
+    setMarcadas((m) => ({ ...m, [k]: { ...(m[k] ?? vazia), [campo]: valor } }))
   }, [])
 
-  const alternar = useCallback(
-    async (item: TreinoExercicio, serie: number, padraoCarga: string, padraoReps: string) => {
+  const gravar = useCallback(
+    async (item: TreinoExercicio, serie: number, m: Marcada) => {
       if (!perfil || !sessaoId) return
-      const nome = item.exercicios?.nome ?? 'Exercício'
+      await registrarSerie({
+        sessao_id: sessaoId,
+        perfil_id: perfil.id,
+        exercicio_id: item.exercicio_id,
+        exercicio_nome: nomeDe(item),
+        serie,
+        carga_kg: m.carga === '' ? null : Number(m.carga.replace(',', '.')),
+        reps: m.reps === '' ? null : Number(m.reps),
+        rir: m.rir,
+        registrada_em: new Date().toISOString(),
+      })
+    },
+    [perfil, sessaoId],
+  )
+
+  const alternar = useCallback(
+    async (
+      item: TreinoExercicio,
+      serie: number,
+      padroes: { carga: string; reps: string },
+      ctx: { descanso: number | null; avancarDe: Bloco | null },
+    ) => {
+      if (!sessaoId) return
+      const nome = nomeDe(item)
       const k = chave(nome, serie)
       const atual = marcadas[k]
 
@@ -135,25 +156,31 @@ export default function Execucao() {
         return
       }
 
-      const carga = atual?.carga || padraoCarga
-      const reps = atual?.reps || padraoReps
-      setMarcadas((m) => ({ ...m, [k]: { carga, reps, feita: true } }))
-      vibrar()
-      if (item.descanso_seg > 0) setDescanso(item.descanso_seg)
-      if (serie === item.series) irParaProximo(item)
-
-      await registrarSerie({
-        sessao_id: sessaoId,
-        perfil_id: perfil.id,
-        exercicio_id: item.exercicio_id,
-        exercicio_nome: nome,
-        serie,
-        carga_kg: carga === '' ? null : Number(carga.replace(',', '.')),
-        reps: reps === '' ? null : Number(reps),
-        registrada_em: new Date().toISOString(),
-      })
+      const nova: Marcada = {
+        carga: atual?.carga || padroes.carga,
+        reps: atual?.reps || padroes.reps,
+        rir: atual?.rir ?? null,
+        feita: true,
+      }
+      setMarcadas((m) => ({ ...m, [k]: nova }))
+      vibrar([40])
+      if (ctx.descanso && ctx.descanso > 0) setDescanso(ctx.descanso)
+      if (ctx.avancarDe) irParaProximo(ctx.avancarDe)
+      await gravar(item, serie, nova)
     },
-    [marcadas, perfil, sessaoId, irParaProximo],
+    [marcadas, sessaoId, gravar, irParaProximo],
+  )
+
+  /** RIR pode ser marcado antes ou depois do ✓; se ja registrou, regrava. */
+  const definirRir = useCallback(
+    async (item: TreinoExercicio, serie: number, rir: number | null) => {
+      const k = chave(nomeDe(item), serie)
+      const atual = marcadas[k] ?? vazia
+      const nova = { ...atual, rir: atual.rir === rir ? null : rir }
+      setMarcadas((m) => ({ ...m, [k]: nova }))
+      if (nova.feita) await gravar(item, serie, nova)
+    },
+    [marcadas, gravar],
   )
 
   async function terminar() {
@@ -178,19 +205,13 @@ export default function Execucao() {
             <p className="text-xs text-slate-400">
               {feitas} de {totalSeries} séries
               {semana && (
-                <>
-                  {' · '}
-                  <span className="text-slate-300">
-                    semana {semana.semana} · {semana.reps} reps
-                  </span>
-                </>
+                <span className="text-slate-300">
+                  {' · '}semana {semana.semana} · {semana.reps} reps
+                </span>
               )}
             </p>
           </div>
-          <button
-            onClick={() => navegar('/')}
-            className="shrink-0 text-sm text-slate-400"
-          >
+          <button onClick={() => navegar('/')} className="shrink-0 text-sm text-slate-400">
             voltar
           </button>
         </div>
@@ -203,28 +224,34 @@ export default function Execucao() {
       </header>
 
       <div className="mx-auto flex max-w-lg flex-col gap-4 p-5">
-        {meusItens.map((item) => (
-          <CartaoExercicio
-            key={item.id}
+        {blocos.map((bloco) => (
+          <CartaoBloco
+            key={bloco.id}
             ref={(el) => {
-              refs.current[item.id] = el
+              refs.current[bloco.id] = el
             }}
-            item={item}
+            bloco={bloco}
             semana={semana}
-            ultima={cargas[item.exercicio_id]}
+            cargas={cargas}
             marcadas={marcadas}
-            concluido={concluido(item)}
-            reaberto={reabertos.has(item.id)}
+            perfilId={perfil?.id ?? ''}
+            concluido={blocoConcluido(bloco)}
+            reaberto={reabertos.has(bloco.id)}
+            painel={painel}
+            aoAbrirPainel={setPainel}
             aoReabrir={() =>
               setReabertos((r) => {
                 const novo = new Set(r)
-                if (novo.has(item.id)) novo.delete(item.id)
-                else novo.add(item.id)
+                if (novo.has(bloco.id)) novo.delete(bloco.id)
+                else novo.add(bloco.id)
                 return novo
               })
             }
             aoAlterar={alterar}
-            aoAlternar={alternar}
+            aoDefinirRir={definirRir}
+            aoAlternar={(item, serie, padroes, ctx) =>
+              alternar(item, serie, padroes, { ...ctx, avancarDe: ctx.avancar ? bloco : null })
+            }
           />
         ))}
 
@@ -233,7 +260,7 @@ export default function Execucao() {
           disabled={finalizando}
           className="mt-2 rounded-2xl bg-emerald-600 py-4 text-base font-semibold active:bg-emerald-700 disabled:opacity-50"
         >
-          {finalizando ? 'Salvando...' : 'Finalizar treino'}
+          {finalizando ? 'Salvando…' : 'Finalizar treino'}
         </button>
       </div>
 
@@ -248,31 +275,36 @@ export default function Execucao() {
   )
 }
 
-function CartaoExercicio({
-  ref, item, semana, ultima, marcadas, concluido, reaberto, aoReabrir, aoAlterar, aoAlternar,
+type Padroes = { carga: string; reps: string }
+type Contexto = { descanso: number | null; avancar: boolean }
+
+function CartaoBloco({
+  ref, bloco, semana, cargas, marcadas, perfilId, concluido, reaberto, painel,
+  aoAbrirPainel, aoReabrir, aoAlterar, aoDefinirRir, aoAlternar,
 }: {
   ref?: React.Ref<HTMLElement>
-  item: TreinoExercicio
+  bloco: Bloco
   semana: SemanaCiclo | null
-  ultima?: UltimaCarga
+  cargas: Record<string, UltimaCarga>
   marcadas: Record<string, Marcada>
+  perfilId: string
   concluido: boolean
   reaberto: boolean
+  painel: string | null
+  aoAbrirPainel: (k: string | null) => void
   aoReabrir: () => void
   aoAlterar: (k: string, campo: 'carga' | 'reps', v: string) => void
-  aoAlternar: (i: TreinoExercicio, s: number, c: string, r: string) => Promise<void>
+  aoDefinirRir: (i: TreinoExercicio, s: number, rir: number | null) => Promise<void>
+  aoAlternar: (i: TreinoExercicio, s: number, p: Padroes, c: Contexto) => Promise<void>
 }) {
-  const nome = item.exercicios?.nome ?? 'Exercício'
-  const alvoReps = repsDoDia(item, semana)
-  const padraoCarga = ultima?.carga_kg != null ? String(ultima.carga_kg) : ''
-  // A meta da semana manda no chute inicial das repeticoes.
-  const padraoReps = primeiroNumero(alvoReps)
+  const [progressaoDe, setProgressaoDe] = useState<string | null>(null)
 
-  const series = Array.from({ length: item.series }, (_, i) => i + 1)
+  const maxSeries = Math.max(...bloco.itens.map((i) => i.series))
+  // No bi-set o descanso e um so, no fim da rodada: vale o maior prescrito.
+  const descansoDoBloco = Math.max(...bloco.itens.map((i) => i.descanso_seg))
 
-  // Exercicio concluido vira uma linha. Sete exercicios abertos viram uma
-  // rolagem de 25 linhas de input; conforme o treino anda, a tela encolhe
-  // e o que falta fica na mao.
+  // Bloco concluido vira uma linha. Sete exercicios abertos somam 25
+  // linhas de input; conforme o treino anda, a tela encolhe.
   if (concluido && !reaberto) {
     return (
       <section ref={ref as React.Ref<HTMLElement>}>
@@ -284,8 +316,12 @@ function CartaoExercicio({
             ✓
           </span>
           <span className="min-w-0 flex-1">
-            <span className="block truncate text-sm font-medium text-slate-300">{nome}</span>
-            <span className="text-xs text-slate-500">{resumo(nome, series, marcadas)}</span>
+            <span className="block truncate text-sm font-medium text-slate-300">
+              {bloco.itens.map(nomeDe).join(' + ')}
+            </span>
+            <span className="text-xs text-slate-500">
+              {bloco.itens.map((i) => resumo(i, marcadas)).filter(Boolean).join(' · ')}
+            </span>
           </span>
           <span className="shrink-0 text-xs text-slate-600">editar</span>
         </button>
@@ -298,70 +334,100 @@ function CartaoExercicio({
       ref={ref as React.Ref<HTMLElement>}
       className="scroll-mt-24 rounded-2xl border border-borda bg-cartao p-4"
     >
-      <div className="flex items-start justify-between gap-2">
-        <div className="min-w-0">
-          <h2 className="font-semibold leading-tight">{nome}</h2>
-          <p className="mt-0.5 text-sm text-slate-400">
-            {item.series} × {alvoReps}
-            {item.descanso_seg > 0 && ` · ${item.descanso_seg}s`}
-            {item.reps && <span className="ml-1.5 text-amber-400/80">fixo</span>}
-          </p>
-        </div>
-        {concluido && (
-          <button onClick={aoReabrir} className="shrink-0 text-xs text-slate-500">
-            fechar
+      {bloco.biset && (
+        <p className="mb-2 inline-block rounded-full bg-violet-500/15 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-violet-300">
+          Bi-set · sem descanso entre eles
+        </p>
+      )}
+
+      {bloco.itens.map((item) => (
+        <div key={item.id} className={bloco.biset ? 'mb-1' : ''}>
+          <button
+            onClick={() =>
+              setProgressaoDe((a) => (a === item.exercicio_id ? null : item.exercicio_id))
+            }
+            className="flex w-full items-baseline justify-between gap-2 text-left"
+          >
+            <span className="min-w-0">
+              <span className="font-semibold leading-tight">{nomeDe(item)}</span>
+              <span className="ml-1.5 text-xs text-slate-600">
+                {progressaoDe === item.exercicio_id ? '▴' : '▾'}
+              </span>
+            </span>
+            <span className="shrink-0 text-sm text-slate-400">
+              {item.series} × {repsDoDia(item, semana)}
+              {item.reps && <span className="ml-1 text-amber-400/80">fixo</span>}
+            </span>
           </button>
-        )}
-      </div>
 
-      {item.observacao && (
-        <p className="mt-2 rounded-lg bg-amber-500/10 px-3 py-2 text-sm text-amber-200">
-          {item.observacao}
+          {progressaoDe === item.exercicio_id && (
+            <ProgressaoInline perfilId={perfilId} exercicioId={item.exercicio_id} />
+          )}
+
+          {item.observacao && (
+            <p className="mt-2 rounded-lg bg-amber-500/10 px-3 py-2 text-sm text-amber-200">
+              {item.observacao}
+            </p>
+          )}
+        </div>
+      ))}
+
+      {!bloco.biset && bloco.itens[0].descanso_seg > 0 && (
+        <p className="mt-0.5 text-sm text-slate-400">
+          descanso {bloco.itens[0].descanso_seg}s
         </p>
       )}
 
-      {ultima && (
-        <p className="mt-2 text-xs text-slate-500">
-          última vez: {ultima.carga_kg}kg
-          {ultima.reps ? ` × ${ultima.reps}` : ''} · {dataCurta(ultima.registrada_em)}
-        </p>
-      )}
+      {(() => {
+        const item = bloco.itens[0]
+        const u = cargas[item.exercicio_id]
+        return !bloco.biset && u ? (
+          <p className="mt-1 text-xs text-slate-500">
+            última vez: {u.carga_kg}kg{u.reps ? ` × ${u.reps}` : ''} ·{' '}
+            {dataCurta(u.registrada_em)}
+          </p>
+        ) : null
+      })()}
 
       <div className="mt-3 flex flex-col gap-2">
-        {series.map((serie) => {
-          const k = chave(nome, serie)
-          const m = marcadas[k]
-          const feita = m?.feita ?? false
+        {Array.from({ length: maxSeries }, (_, i) => i + 1).map((serie) => {
+          const participantes = bloco.itens.filter((i) => serie <= i.series)
           return (
-            <div key={serie} className="flex items-center gap-2">
-              <span className="w-5 shrink-0 text-center text-sm text-slate-500">{serie}</span>
-
-              <Campo
-                valor={m?.carga ?? ''}
-                placeholder={padraoCarga || '—'}
-                sufixo="kg"
-                feita={feita}
-                aoMudar={(v) => aoAlterar(k, 'carga', v)}
-              />
-              <Campo
-                valor={m?.reps ?? ''}
-                placeholder={padraoReps || '—'}
-                sufixo="reps"
-                feita={feita}
-                aoMudar={(v) => aoAlterar(k, 'reps', v)}
-              />
-
-              <button
-                onClick={() => void aoAlternar(item, serie, padraoCarga, padraoReps)}
-                aria-label={feita ? `Desmarcar série ${serie}` : `Concluir série ${serie}`}
-                className={`flex h-14 w-14 shrink-0 items-center justify-center rounded-xl text-2xl font-bold transition-colors ${
-                  feita
-                    ? 'bg-emerald-600 text-white'
-                    : 'border border-borda bg-slate-800 text-slate-500 active:bg-slate-700'
-                }`}
-              >
-                ✓
-              </button>
+            <div key={serie} className={bloco.biset ? 'rounded-xl bg-slate-800/40 p-2' : ''}>
+              {bloco.biset && (
+                <p className="mb-1.5 px-1 text-[11px] font-medium uppercase tracking-wide text-slate-500">
+                  Série {serie}
+                </p>
+              )}
+              {participantes.map((item, j) => {
+                const ultimo = j === participantes.length - 1
+                const alvoReps = repsDoDia(item, semana)
+                const u = cargas[item.exercicio_id]
+                const padroes: Padroes = {
+                  carga: u?.carga_kg != null ? String(u.carga_kg) : '',
+                  reps: primeiroNumero(alvoReps),
+                }
+                const k = chave(nomeDe(item), serie)
+                return (
+                  <LinhaSerie
+                    key={item.id}
+                    rotulo={bloco.biset ? nomeCurto(nomeDe(item)) : String(serie)}
+                    compacto={bloco.biset}
+                    marcada={marcadas[k] ?? vazia}
+                    padroes={padroes}
+                    aberto={painel === k}
+                    aoAbrir={() => aoAbrirPainel(painel === k ? null : k)}
+                    aoAlterar={(campo, v) => aoAlterar(k, campo, v)}
+                    aoDefinirRir={(rir) => void aoDefinirRir(item, serie, rir)}
+                    aoAlternar={() =>
+                      void aoAlternar(item, serie, padroes, {
+                        descanso: ultimo ? (bloco.biset ? descansoDoBloco : item.descanso_seg) : null,
+                        avancar: ultimo && serie === maxSeries,
+                      })
+                    }
+                  />
+                )
+              })}
             </div>
           )
         })}
@@ -370,29 +436,158 @@ function CartaoExercicio({
   )
 }
 
-/** "3 × 8 · 32kg" — o que foi de fato registrado, nao o prescrito. */
-function resumo(nome: string, series: number[], marcadas: Record<string, Marcada>) {
-  const feitas = series
-    .map((n) => marcadas[chave(nome, n)])
-    .filter((m): m is Marcada => Boolean(m?.feita))
-  if (feitas.length === 0) return ''
+const DELTAS = [-5, -2.5, -1, 1, 2.5, 5]
+const OPCOES_RIR = [
+  { valor: 0, rotulo: 'falha' },
+  { valor: 1, rotulo: '1' },
+  { valor: 2, rotulo: '2' },
+  { valor: 3, rotulo: '3+' },
+]
 
-  const cargas = [...new Set(feitas.map((m) => m.carga).filter(Boolean))]
-  const reps = [...new Set(feitas.map((m) => m.reps).filter(Boolean))]
-  const partes = [`${feitas.length} série${feitas.length > 1 ? 's' : ''}`]
-  if (reps.length > 0) partes.push(`${reps.join('/')} reps`)
-  if (cargas.length > 0) partes.push(`${cargas.join('/')}kg`)
-  return partes.join(' · ')
+function LinhaSerie({
+  rotulo, compacto, marcada, padroes, aberto, aoAbrir, aoAlterar, aoDefinirRir, aoAlternar,
+}: {
+  rotulo: string
+  compacto: boolean
+  marcada: Marcada
+  padroes: Padroes
+  aberto: boolean
+  aoAbrir: () => void
+  aoAlterar: (campo: 'carga' | 'reps', v: string) => void
+  aoDefinirRir: (rir: number | null) => void
+  aoAlternar: () => void
+}) {
+  const feita = marcada.feita
+  return (
+    <div className={compacto ? 'mb-1 last:mb-0' : ''}>
+      <div className="flex items-center gap-2">
+        {/* O rotulo tambem abre o painel: nao ha espaco para mais um botao
+            na linha, e a area ja existe. */}
+        <button
+          onClick={aoAbrir}
+          aria-label={aberto ? 'Fechar ajustes' : 'Ajustar carga e RIR'}
+          className={`h-12 shrink-0 truncate rounded-lg text-center ${
+            compacto ? 'w-[4.5rem] px-1 text-[11px]' : 'w-9 text-sm'
+          } ${aberto ? 'bg-slate-700 text-slate-200' : 'text-slate-500'}`}
+        >
+          {rotulo}
+        </button>
+
+        <Campo
+          valor={marcada.carga}
+          placeholder={padroes.carga || '—'}
+          sufixo="kg"
+          feita={feita}
+          aoMudar={(v) => aoAlterar('carga', v)}
+          aoFocar={aoAbrir}
+        />
+        <Campo
+          valor={marcada.reps}
+          placeholder={padroes.reps || '—'}
+          sufixo="reps"
+          feita={feita}
+          aoMudar={(v) => aoAlterar('reps', v)}
+        />
+
+        <button
+          onClick={aoAlternar}
+          aria-label={feita ? 'Desmarcar série' : 'Concluir série'}
+          className={`relative flex h-14 w-14 shrink-0 items-center justify-center rounded-xl text-2xl font-bold transition-colors ${
+            feita
+              ? marcada.rir === 0
+                ? 'bg-amber-600 text-white'
+                : 'bg-emerald-600 text-white'
+              : 'border border-borda bg-slate-800 text-slate-500 active:bg-slate-700'
+          }`}
+        >
+          ✓
+          {feita && marcada.rir !== null && (
+            <span className="absolute bottom-0.5 text-[9px] font-semibold leading-none opacity-90">
+              {marcada.rir === 0 ? 'falha' : `RIR ${marcada.rir}`}
+            </span>
+          )}
+        </button>
+      </div>
+
+      {aberto && (
+        <PainelSerie
+          marcada={marcada}
+          padroes={padroes}
+          aoAlterar={aoAlterar}
+          aoDefinirRir={aoDefinirRir}
+        />
+      )}
+    </div>
+  )
+}
+
+/**
+ * Ajuste rapido de carga e RIR.
+ * Nao cabe na linha da serie sem espremer os campos abaixo do tamanho
+ * usavel, entao abre embaixo, so quando pedido.
+ */
+function PainelSerie({
+  marcada, padroes, aoAlterar, aoDefinirRir,
+}: {
+  marcada: Marcada
+  padroes: Padroes
+  aoAlterar: (campo: 'carga' | 'reps', v: string) => void
+  aoDefinirRir: (rir: number | null) => void
+}) {
+  // preventDefault no mousedown: sem isso o toque tira o foco do campo e
+  // o teclado do celular pisca a cada ajuste.
+  const semRoubarFoco = (e: React.MouseEvent) => e.preventDefault()
+
+  return (
+    <div className="mt-2 flex flex-col gap-2 rounded-xl border border-borda bg-slate-800/60 p-2">
+      <div className="grid grid-cols-6 gap-1">
+        {DELTAS.map((d) => (
+          <button
+            key={d}
+            onMouseDown={semRoubarFoco}
+            onClick={() => aoAlterar('carga', somarCarga(marcada.carga || padroes.carga, d))}
+            className="h-11 rounded-lg bg-slate-700 text-xs font-semibold tabular-nums active:bg-slate-600"
+          >
+            {d > 0 ? '+' : '−'}
+            {String(Math.abs(d)).replace('.', ',')}
+          </button>
+        ))}
+      </div>
+
+      <div className="flex items-center gap-1">
+        <span className="w-9 shrink-0 text-center text-[11px] font-medium text-slate-500">
+          RIR
+        </span>
+        {OPCOES_RIR.map((o) => (
+          <button
+            key={o.valor}
+            onMouseDown={semRoubarFoco}
+            onClick={() => aoDefinirRir(o.valor)}
+            className={`h-11 flex-1 rounded-lg text-xs font-semibold ${
+              marcada.rir === o.valor
+                ? o.valor === 0
+                  ? 'bg-amber-600 text-white'
+                  : 'bg-blue-600 text-white'
+                : 'bg-slate-700 text-slate-300 active:bg-slate-600'
+            }`}
+          >
+            {o.rotulo}
+          </button>
+        ))}
+      </div>
+    </div>
+  )
 }
 
 function Campo({
-  valor, placeholder, sufixo, feita, aoMudar,
+  valor, placeholder, sufixo, feita, aoMudar, aoFocar,
 }: {
   valor: string
   placeholder: string
   sufixo: string
   feita: boolean
   aoMudar: (v: string) => void
+  aoFocar?: () => void
 }) {
   return (
     <div className="relative flex-1">
@@ -401,19 +596,50 @@ function Campo({
         value={valor}
         placeholder={placeholder}
         onChange={(e) => aoMudar(e.target.value)}
-        // O teclado do celular cobre metade da tela: sem isto, o campo
-        // que voce acabou de tocar some atras dele.
         onFocus={(e) => {
+          aoFocar?.()
+          // O teclado cobre metade da tela: sem isto o campo recem tocado
+          // some atras dele.
           const alvo = e.target
           setTimeout(() => alvo.scrollIntoView({ block: 'center', behavior: 'smooth' }), 250)
         }}
-        className={`w-full rounded-xl border py-3 pl-3 pr-9 text-base outline-none focus:border-blue-500 ${
+        className={`w-full rounded-xl border py-3 pl-2.5 pr-8 text-base outline-none focus:border-blue-500 ${
           feita ? 'border-emerald-600/40 bg-emerald-950/30' : 'border-borda bg-slate-800'
         }`}
       />
-      <span className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-xs text-slate-500">
+      <span className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-[10px] text-slate-500">
         {sufixo}
       </span>
+    </div>
+  )
+}
+
+/** Historico de carga do exercicio, sem sair da tela de treino. */
+function ProgressaoInline({
+  perfilId, exercicioId,
+}: {
+  perfilId: string
+  exercicioId: string
+}) {
+  const [pontos, setPontos] = useState<PontoProgressao[] | null>(null)
+
+  useEffect(() => {
+    let vivo = true
+    void buscarProgressao(perfilId, exercicioId)
+      .then((p) => vivo && setPontos(p))
+      .catch(() => vivo && setPontos([]))
+    return () => {
+      vivo = false
+    }
+  }, [perfilId, exercicioId])
+
+  return (
+    <div className="mt-2 rounded-xl border border-borda bg-slate-800/40 p-3">
+      {pontos === null && <p className="text-xs text-slate-500">carregando…</p>}
+      {pontos?.length === 0 && (
+        <p className="text-xs text-slate-500">Primeira vez neste exercício.</p>
+      )}
+      {pontos && pontos.length > 0 && <GraficoCarga pontos={pontos} altura="h-20" maximo={8} />}
     </div>
   )
 }
@@ -449,19 +675,77 @@ function BarraDescanso({
   )
 }
 
+// --- helpers ---------------------------------------------------------
+
+const nomeDe = (item: TreinoExercicio) => item.exercicios?.nome ?? 'Exercício'
+
+/** "Tríceps testa unilateral na polia" -> "Tríceps testa…" na linha do bi-set. */
+function nomeCurto(nome: string) {
+  const palavras = nome.split(' ')
+  return palavras.length <= 2 ? nome : `${palavras.slice(0, 2).join(' ')}…`
+}
+
+/** Exercicios do mesmo `grupo` viram um bloco; grupo de um so vira solo. */
+function agrupar(itens: TreinoExercicio[]): Bloco[] {
+  const blocos: Bloco[] = []
+  const posicao = new Map<number, number>()
+
+  for (const item of itens) {
+    if (item.grupo == null) {
+      blocos.push({ id: item.id, biset: false, itens: [item] })
+      continue
+    }
+    const i = posicao.get(item.grupo)
+    if (i === undefined) {
+      posicao.set(item.grupo, blocos.length)
+      blocos.push({ id: `grupo-${item.grupo}`, biset: true, itens: [item] })
+    } else {
+      blocos[i].itens.push(item)
+    }
+  }
+
+  // Um bi-set em que a pessoa faz so um dos exercicios e um exercicio normal.
+  return blocos.map((b) =>
+    b.biset && b.itens.length === 1 ? { id: b.itens[0].id, biset: false, itens: b.itens } : b,
+  )
+}
+
+/** "3 séries · 8 reps · 32kg" — o que foi registrado, nao o prescrito. */
+function resumo(item: TreinoExercicio, marcadas: Record<string, Marcada>) {
+  const feitas = Array.from({ length: item.series }, (_, i) => i + 1)
+    .map((n) => marcadas[chave(nomeDe(item), n)])
+    .filter((m): m is Marcada => Boolean(m?.feita))
+  if (feitas.length === 0) return ''
+
+  const cargas = [...new Set(feitas.map((m) => m.carga).filter(Boolean))]
+  const reps = [...new Set(feitas.map((m) => m.reps).filter(Boolean))]
+  const partes = [`${feitas.length}×`]
+  if (reps.length > 0) partes.push(reps.join('/'))
+  if (cargas.length > 0) partes.push(`${cargas.join('/')}kg`)
+  if (feitas.some((m) => m.rir === 0)) partes.push('falha')
+  return partes.join(' · ')
+}
+
+function somarCarga(valor: string, delta: number) {
+  const base = Number((valor || '0').replace(',', '.')) || 0
+  const novo = Math.max(0, Math.round((base + delta) * 100) / 100)
+  return String(novo).replace('.', ',')
+}
+
 function reidratar(series: SerieRegistro[]) {
   const m: Record<string, Marcada> = {}
   for (const s of series) {
     m[chave(s.exercicio_nome, s.serie)] = {
       carga: s.carga_kg != null ? String(s.carga_kg) : '',
       reps: s.reps != null ? String(s.reps) : '',
+      rir: s.rir ?? null,
       feita: true,
     }
   }
   return m
 }
 
-/** "10-12" -> "10". Da um chute util quando nao ha historico. */
+/** "8-10" -> "8". Da a meta da semana como chute inicial. */
 function primeiroNumero(reps: string) {
   return reps.match(/\d+/)?.[0] ?? ''
 }
@@ -470,11 +754,10 @@ function dataCurta(iso: string) {
   return new Date(iso).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })
 }
 
-function vibrar() {
+function vibrar(padrao: number[]) {
   try {
-    navigator.vibrate?.(40)
+    navigator.vibrate?.(padrao)
   } catch {
     /* navegador sem vibracao */
   }
 }
-

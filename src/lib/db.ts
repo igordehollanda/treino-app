@@ -1,8 +1,8 @@
 import { supabase } from './supabase'
 import { enfileirar } from './fila'
 import type {
-  Exercicio, Perfil, Periodizacao, SemanaCiclo, SerieRegistro, Sessao,
-  TreinoCompleto, UltimaCarga,
+  Exercicio, Perfil, Periodizacao, PontoProgressao, SemanaCiclo, SerieRegistro,
+  Sessao, TreinoCompleto, UltimaCarga,
 } from './tipos'
 import { semanaDoCiclo } from './periodizacao'
 
@@ -143,7 +143,7 @@ export async function buscarTreinos(): Promise<TreinoCompleto[]> {
       treino_alunos ( perfil_id ),
       treino_exercicios (
         id, treino_id, exercicio_id, perfil_id, ordem, series, reps,
-        descanso_seg, observacao,
+        descanso_seg, observacao, grupo,
         exercicios ( id, nome, grupo_muscular, video_url )
       )
     `)
@@ -230,7 +230,10 @@ export async function buscarSeriesDaSessao(sessaoId: string): Promise<SerieRegis
 }
 
 /** Progressao de carga de um exercicio: a melhor serie de cada dia. */
-export async function buscarProgressao(perfilId: string, exercicioId: string) {
+export async function buscarProgressao(
+  perfilId: string,
+  exercicioId: string,
+): Promise<PontoProgressao[]> {
   const { data, error } = await supabase
     .from('series_registros')
     .select('carga_kg, reps, registrada_em')
@@ -240,7 +243,7 @@ export async function buscarProgressao(perfilId: string, exercicioId: string) {
     .order('registrada_em')
   if (error) throw error
 
-  const porDia = new Map<string, { dia: string; carga: number; reps: number | null }>()
+  const porDia = new Map<string, PontoProgressao>()
   for (const r of data ?? []) {
     const dia = (r.registrada_em as string).slice(0, 10)
     const atual = porDia.get(dia)
@@ -333,7 +336,7 @@ export async function definirAlunos(treinoId: string, perfis: string[]) {
 export async function salvarItem(item: {
   id?: string; treino_id: string; exercicio_id: string; perfil_id: string | null
   ordem: number; series: number; reps: string | null; descanso_seg: number
-  observacao: string | null
+  observacao: string | null; grupo?: number | null
 }) {
   const { error } = await supabase
     .from('treino_exercicios')

@@ -66,10 +66,33 @@ export default function EditorTreino() {
         salvarItem({
           id: x.id, treino_id: treino.id, exercicio_id: x.exercicio_id,
           perfil_id: x.perfil_id, ordem, series: x.series, reps: x.reps,
-          descanso_seg: x.descanso_seg, observacao: x.observacao,
+          descanso_seg: x.descanso_seg, observacao: x.observacao, grupo: x.grupo,
         }),
       ),
     )
+    await recarregar()
+  }
+
+  /**
+   * Bi-set e sempre "junto com o de cima": e assim que o treinador pensa,
+   * e evita inventar uma interface de selecao multipla.
+   */
+  async function alternarBiset(item: TreinoExercicio, anterior: TreinoExercicio) {
+    if (!treino) return
+    const base = (x: TreinoExercicio, grupo: number | null) => ({
+      id: x.id, treino_id: treino.id, exercicio_id: x.exercicio_id,
+      perfil_id: x.perfil_id, ordem: x.ordem, series: x.series, reps: x.reps,
+      descanso_seg: x.descanso_seg, observacao: x.observacao, grupo,
+    })
+
+    if (item.grupo != null) {
+      await salvarItem(base(item, null))
+    } else {
+      const usados = treino.itens.map((x) => x.grupo ?? 0)
+      const grupo = anterior.grupo ?? Math.max(0, ...usados) + 1
+      if (anterior.grupo == null) await salvarItem(base(anterior, grupo))
+      await salvarItem(base(item, grupo))
+    }
     await recarregar()
   }
 
@@ -127,14 +150,16 @@ export default function EditorTreino() {
           <LinhaItem
             key={item.id}
             item={item}
+            anterior={treino.itens[i - 1] ?? null}
             alunos={alunos}
             primeiro={i === 0}
             ultimo={i === treino.itens.length - 1}
             aoMover={(d) => void mover(item, d)}
+            aoAlternarBiset={(anterior) => void alternarBiset(item, anterior)}
             aoSalvar={async (campos) => {
               await salvarItem({
                 id: item.id, treino_id: treino.id, exercicio_id: item.exercicio_id,
-                ordem: item.ordem, ...campos,
+                ordem: item.ordem, grupo: item.grupo, ...campos,
               })
               await recarregar()
             }}
@@ -178,13 +203,15 @@ export default function EditorTreino() {
 }
 
 function LinhaItem({
-  item, alunos, primeiro, ultimo, aoMover, aoSalvar, aoApagar,
+  item, anterior, alunos, primeiro, ultimo, aoMover, aoAlternarBiset, aoSalvar, aoApagar,
 }: {
   item: TreinoExercicio
+  anterior: TreinoExercicio | null
   alunos: Perfil[]
   primeiro: boolean
   ultimo: boolean
   aoMover: (delta: number) => void
+  aoAlternarBiset: (anterior: TreinoExercicio) => void
   aoSalvar: (campos: {
     perfil_id: string | null; series: number; reps: string | null
     descanso_seg: number; observacao: string | null
@@ -209,7 +236,16 @@ function LinhaItem({
     })
 
   return (
-    <div className="rounded-2xl border border-borda bg-cartao p-4">
+    <div
+      className={`rounded-2xl border bg-cartao p-4 ${
+        item.grupo != null ? 'border-violet-500/40' : 'border-borda'
+      }`}
+    >
+      {item.grupo != null && (
+        <p className="mb-2 text-[10px] font-bold uppercase tracking-wide text-violet-300">
+          Bi-set com o exercício acima
+        </p>
+      )}
       <div className="flex items-start justify-between gap-2">
         <h3 className="min-w-0 truncate font-medium">{item.exercicios?.nome}</h3>
         <div className="flex shrink-0 gap-1 text-slate-500">
@@ -265,6 +301,19 @@ function LinhaItem({
         placeholder="observação (ex: pegada aberta)"
         className="mt-3 w-full rounded-lg border border-borda bg-slate-800 px-3 py-2 text-sm outline-none focus:border-blue-500"
       />
+
+      {anterior && (
+        <button
+          onClick={() => aoAlternarBiset(anterior)}
+          className={`mt-2 w-full rounded-lg border py-2 text-xs font-medium ${
+            item.grupo != null
+              ? 'border-violet-500 bg-violet-500/15 text-violet-300'
+              : 'border-borda text-slate-400'
+          }`}
+        >
+          {item.grupo != null ? 'Separar do exercício acima' : 'Fazer em bi-set com o de cima'}
+        </button>
+      )}
     </div>
   )
 }

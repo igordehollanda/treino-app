@@ -3,7 +3,8 @@ import { useAuth } from '../lib/auth'
 import {
   buscarExercicios, buscarPerfis, buscarProgressao, buscarSessoes, perfisEmCache,
 } from '../lib/db'
-import type { Exercicio, Perfil, Sessao } from '../lib/tipos'
+import GraficoCarga from '../componentes/GraficoCarga'
+import type { Exercicio, Perfil, PontoProgressao, Sessao } from '../lib/tipos'
 
 export default function Historico() {
   const { perfil, ehPersonal } = useAuth()
@@ -12,7 +13,7 @@ export default function Historico() {
   const [sessoes, setSessoes] = useState<Sessao[]>([])
   const [exercicios, setExercicios] = useState<Exercicio[]>([])
   const [exercicioId, setExercicioId] = useState('')
-  const [progressao, setProgressao] = useState<{ dia: string; carga: number; reps: number | null }[]>([])
+  const [progressao, setProgressao] = useState<PontoProgressao[]>([])
 
   useEffect(() => {
     void buscarPerfis().then(setPerfis).catch(console.error)
@@ -92,7 +93,7 @@ export default function Historico() {
         {exercicioId && progressao.length === 0 && (
           <p className="text-sm text-slate-500">Sem registros desse exercício.</p>
         )}
-        {progressao.length > 0 && <Grafico pontos={progressao} />}
+        {progressao.length > 0 && <GraficoCarga pontos={progressao} />}
       </section>
     </div>
   )
@@ -135,42 +136,6 @@ function Mes({ mes, dias }: { mes: string; dias: Set<number> }) {
           </div>
         ))}
       </div>
-    </div>
-  )
-}
-
-/** Grafico de barras simples: cada dia, a carga mais pesada do exercicio. */
-function Grafico({ pontos }: { pontos: { dia: string; carga: number; reps: number | null }[] }) {
-  const ultimos = pontos.slice(-12)
-  const maior = Math.max(...ultimos.map((p) => p.carga))
-  const primeiro = ultimos[0]
-  const atual = ultimos[ultimos.length - 1]
-  const delta = atual.carga - primeiro.carga
-
-  return (
-    <div>
-      <div className="flex h-32 items-end gap-1.5">
-        {ultimos.map((p) => (
-          <div key={p.dia} className="flex flex-1 flex-col items-center gap-1">
-            <span className="text-[9px] tabular-nums text-slate-400">{p.carga}</span>
-            <div
-              className="w-full rounded-t bg-blue-500"
-              style={{ height: `${Math.max(6, (p.carga / maior) * 100)}%` }}
-              title={`${p.dia}: ${p.carga}kg${p.reps ? ` x ${p.reps}` : ''}`}
-            />
-          </div>
-        ))}
-      </div>
-      <p className="mt-3 text-sm text-slate-400">
-        {delta > 0 && <span className="text-emerald-400">+{arredonda(delta)}kg</span>}
-        {delta < 0 && <span className="text-amber-400">{arredonda(delta)}kg</span>}
-        {delta === 0 && <span>mesma carga</span>}
-        <span className="ml-1">
-          desde {new Date(`${primeiro.dia}T12:00:00`).toLocaleDateString('pt-BR', {
-            day: '2-digit', month: '2-digit',
-          })}
-        </span>
-      </p>
     </div>
   )
 }
@@ -220,4 +185,3 @@ function chaveSemana(d: Date) {
   return x.toISOString().slice(0, 10)
 }
 
-const arredonda = (n: number) => Math.round(n * 10) / 10

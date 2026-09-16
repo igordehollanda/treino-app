@@ -259,3 +259,21 @@ join perfis p        on p.id = ta.perfil_id
 join treino_exercicios te on te.treino_id = t.id
 group by t.ordem, t.nome, p.nome
 order by t.ordem, p.nome;
+
+-- ---------------------------------------------------------------------
+-- 6. Bi-sets  (requer a migration 0005)
+-- ---------------------------------------------------------------------
+-- A: abdutora + adutora — so o Igor faz os dois, entao para a Camila o
+--    grupo tem um membro so e a tela o trata como exercicio normal.
+update treino_exercicios set grupo = 1
+where treino_id = 'aaaa0001-0000-4000-8000-000000000001'
+  and exercicio_id in (select id from exercicios where nome in ('Abdutora', 'Adutora'));
+
+-- D: pull down + rosca Scott, para os dois.
+update treino_exercicios set grupo = 1
+where treino_id = 'aaaa0004-0000-4000-8000-000000000004'
+  and exercicio_id in (select id from exercicios where nome in ('Pull down', 'Rosca Scott máquina'));
+
+-- A observacao textual vira redundante: a tela ja mostra que e bi-set.
+update treino_exercicios set observacao = null
+where grupo is not null and observacao like 'Bi-set%';

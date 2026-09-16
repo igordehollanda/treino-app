@@ -83,9 +83,12 @@ parar de mostrar "Setting up project".
 
 No menu lateral, abra **SQL Editor** e clique em **New query**.
 
-Voce vai rodar **tres arquivos, nesta ordem**. Para cada um: abra o
-arquivo no repositorio, copie **o conteudo inteiro**, cole no editor e
-clique em **Run** (ou `Ctrl+Enter`).
+Rode **todos os arquivos de `supabase/migrations/`, em ordem numerica**.
+Para cada um: abra o arquivo no repositorio, copie **o conteudo
+inteiro**, cole no editor e clique em **Run** (ou `Ctrl+Enter`).
+
+Cada um deve responder **Success. No rows returned**. Se algum falhar,
+pare: os seguintes dependem dele.
 
 ### 2.1 — `supabase/migrations/0001_schema.sql`
 
@@ -111,7 +114,16 @@ vazia.
 
 ✅ Resultado esperado: **Success. No rows returned**
 
-### 2.4 — Conferir
+### 2.4 — `0004_periodizacao.sql`
+
+Cria o ciclo de repeticoes por semana e torna `reps` opcional no
+exercicio: null passa a significar "segue a semana".
+
+### 2.5 — `0005_biset_rir.sql`
+
+Adiciona bi-set (`treino_exercicios.grupo`) e RIR (`series_registros.rir`).
+
+### 2.6 — Conferir
 
 Cole e rode esta consulta:
 

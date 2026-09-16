@@ -35,6 +35,8 @@ export type TreinoExercicio = {
   reps: string | null
   descanso_seg: number
   observacao: string | null
+  /** Mesmo numero no mesmo treino = bi-set; null = exercicio solo. */
+  grupo: number | null
   exercicios: Exercicio | null
 }
 
@@ -75,13 +77,23 @@ export type SerieRegistro = {
   serie: number
   carga_kg: number | null
   reps: number | null
+  /** 0 = falha; N = repeticoes em reserva; null = nao informado. */
+  rir: number | null
   registrada_em: string
+}
+
+export type PontoProgressao = {
+  dia: string
+  carga: number
+  reps: number | null
 }
 
 export type UltimaCarga = {
   exercicio_id: string
   carga_kg: number | null
   reps: number | null
+  /** 0 = falha; N = repeticoes em reserva; null = nao informado. */
+  rir: number | null
   registrada_em: string
 }
 
