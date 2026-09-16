@@ -19,7 +19,7 @@ export default function Layout() {
   }, [])
 
   return (
-    <div className="min-h-dvh pb-20">
+    <div className="min-h-dvh pb-20 md:pb-10">
       {(!online || naFila > 0) && (
         <div className="sticky top-0 z-10 bg-amber-500/90 px-4 py-1.5 text-center text-xs font-medium text-amber-950">
           {online
@@ -28,16 +28,21 @@ export default function Layout() {
         </div>
       )}
 
-      <Outlet />
-
+      {/* No celular a navegacao mora embaixo, ao alcance do polegar. No
+          desktop ela vira um seletor compacto no topo: esticada de ponta
+          a ponta numa tela larga, os tres itens ficam a meio metro um do
+          outro e a barra parece quebrada. */}
       <nav
-        className="fixed inset-x-0 bottom-0 z-10 grid grid-cols-3 border-t border-borda bg-cartao/95 backdrop-blur"
+        className="fixed inset-x-0 bottom-0 z-10 grid grid-cols-3 border-t border-borda bg-cartao/95 backdrop-blur
+                   md:static md:mx-auto md:mt-5 md:flex md:w-fit md:gap-1 md:rounded-xl md:border md:border-borda md:p-1"
         style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
       >
         <Aba para="/" rotulo="Hoje" />
         <Aba para="/treinos" rotulo="Treinos" />
         <Aba para="/historico" rotulo="Histórico" />
       </nav>
+
+      <Outlet />
     </div>
   )
 }
@@ -48,8 +53,10 @@ function Aba({ para, rotulo }: { para: string; rotulo: string }) {
       to={para}
       end={para === '/'}
       className={({ isActive }) =>
-        `py-3.5 text-center text-sm font-medium transition-colors ${
-          isActive ? 'text-blue-400' : 'text-slate-400'
+        `py-3.5 text-center text-sm font-medium transition-colors md:rounded-lg md:px-7 md:py-2 ${
+          isActive
+            ? 'text-blue-400 md:bg-blue-600 md:text-white'
+            : 'text-slate-400 md:hover:text-slate-200'
         }`
       }
     >

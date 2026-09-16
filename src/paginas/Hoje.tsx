@@ -66,7 +66,7 @@ export default function Hoje() {
   }
 
   return (
-    <div className="mx-auto max-w-lg p-5">
+    <div className="mx-auto max-w-lg p-5 md:max-w-3xl">
       <header className="mb-6 flex items-start justify-between">
         <div>
           <p className="text-sm text-slate-400">{saudacao()},</p>
@@ -80,9 +80,10 @@ export default function Hoje() {
         </button>
       </header>
 
-      {semana && <FaixaDoCiclo semana={semana} />}
-
-      <FaixaDaSemana sessoes={sessoes} />
+      <div className="md:grid md:grid-cols-2 md:items-start md:gap-4">
+        {semana && <FaixaDoCiclo semana={semana} />}
+        <FaixaDaSemana sessoes={sessoes} />
+      </div>
 
       {aberta && (
         <button
@@ -110,7 +111,7 @@ export default function Hoje() {
               aoComecar={() => void comecar(principal)}
             />
           )}
-          <div className="flex flex-col gap-2">
+          <div className="flex flex-col gap-2 md:grid md:grid-cols-2">
             {resto.map((t) => (
               <LinhaTreino
                 key={t.id}

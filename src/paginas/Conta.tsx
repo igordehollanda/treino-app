@@ -36,7 +36,7 @@ export default function Conta() {
   }
 
   return (
-    <div className="mx-auto max-w-lg p-5">
+    <div className="mx-auto max-w-lg p-5 md:max-w-xl">
       <button onClick={() => navegar('/')} className="mb-4 text-sm text-slate-400">
         ← Hoje
       </button>

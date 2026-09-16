@@ -31,7 +31,7 @@ export default function Treinos() {
   }
 
   return (
-    <div className="mx-auto max-w-lg p-5">
+    <div className="mx-auto max-w-lg p-5 md:max-w-3xl">
       <div className="mb-5 flex items-center justify-between">
         <h1 className="text-2xl font-bold">Treinos</h1>
         {ehPersonal && (
@@ -75,49 +75,86 @@ function Cartao({
   meuId: string
   editavel: boolean
 }) {
-  const [aberto, setAberto] = useState(false)
+  // Aberto por padrao: esta tela existe para consultar o treino. Fechada,
+  // ela so mostrava um titulo e um numero que nao era de ninguem.
+  const [aberto, setAberto] = useState(true)
   const nomeDe = (id: string) => perfis.find((p) => p.id === id)?.nome ?? '?'
+
+  // O aluno ve o treino dele. O personal ve os dois lados, que e o ponto
+  // de manter um treino so com variacoes.
+  const meus = editavel
+    ? treino.itens
+    : treino.itens.filter((i) => i.perfil_id === null || i.perfil_id === meuId)
+  const doOutro = editavel
+    ? []
+    : treino.itens.filter((i) => i.perfil_id !== null && i.perfil_id !== meuId)
+  const series = meus.reduce((n, i) => n + i.series, 0)
 
   return (
     <div className="overflow-hidden rounded-2xl border border-borda bg-cartao">
-      <button onClick={() => setAberto((a) => !a)} className="flex w-full items-center gap-3 p-4 text-left">
+      <button
+        onClick={() => setAberto((a) => !a)}
+        className="flex w-full items-center gap-3 p-4 text-left"
+      >
         <div className="min-w-0 flex-1">
           <h2 className="truncate font-semibold">
             {treino.nome}
             {!treino.ativo && <span className="ml-2 text-xs text-slate-500">(inativo)</span>}
           </h2>
           <p className="text-sm text-slate-400">
-            {treino.itens.length} exercícios · {treino.alunos.map(nomeDe).join(' e ') || 'sem alunos'}
+            {meus.length} exercícios · {series} séries
+            {editavel && ` · ${treino.alunos.map(nomeDe).join(' e ') || 'sem alunos'}`}
           </p>
         </div>
-        <span className="text-slate-500">{aberto ? '−' : '+'}</span>
+        <span className="text-lg text-slate-500">{aberto ? '−' : '+'}</span>
       </button>
 
       {aberto && (
         <div className="border-t border-borda px-4 pb-4 pt-3">
-          <ul className="flex flex-col gap-2">
-            {treino.itens.map((i) => (
-              <li key={i.id} className="flex items-baseline justify-between gap-3 text-sm">
-                <span className="min-w-0">
-                  <span className="truncate">{i.exercicios?.nome}</span>
-                  {i.perfil_id && (
-                    <span
-                      className={`ml-2 rounded-full px-2 py-0.5 text-[10px] ${
-                        i.perfil_id === meuId
-                          ? 'bg-blue-500/15 text-blue-400'
-                          : 'bg-pink-500/15 text-pink-400'
-                      }`}
-                    >
-                      so {nomeDe(i.perfil_id)}
+          {treino.observacoes && (
+            <p className="mb-3 rounded-lg bg-slate-800/60 px-3 py-2 text-sm text-slate-300">
+              {treino.observacoes}
+            </p>
+          )}
+
+          <ul className="flex flex-col">
+            {meus.map((i, n) => (
+              <li
+                key={i.id}
+                className="flex items-baseline justify-between gap-3 border-b border-borda/50 py-2 text-sm last:border-0"
+              >
+                <span className="flex min-w-0 items-baseline gap-2">
+                  <span className="w-4 shrink-0 text-xs text-slate-600">{n + 1}</span>
+                  <span className="min-w-0">
+                    <span className="block truncate">{i.exercicios?.nome}</span>
+                    {i.observacao && (
+                      <span className="text-xs text-amber-400/80">{i.observacao}</span>
+                    )}
+                  </span>
+                  {i.grupo != null && (
+                    <span className="shrink-0 rounded-full bg-violet-500/15 px-1.5 py-0.5 text-[10px] text-violet-300">
+                      bi-set
+                    </span>
+                  )}
+                  {editavel && i.perfil_id && (
+                    <span className="shrink-0 rounded-full bg-blue-500/15 px-2 py-0.5 text-[10px] text-blue-300">
+                      só {nomeDe(i.perfil_id)}
                     </span>
                   )}
                 </span>
-                <span className="shrink-0 text-slate-400">
+                <span className="shrink-0 tabular-nums text-slate-400">
                   {i.series} × {repsDoDia(i, semana)}
                 </span>
               </li>
             ))}
           </ul>
+
+          {doOutro.length > 0 && (
+            <p className="mt-3 text-xs text-slate-600">
+              {nomeDe(doOutro[0].perfil_id!)} faz {doOutro.length}{' '}
+              {doOutro.length === 1 ? 'exercício diferente' : 'exercícios diferentes'} neste treino.
+            </p>
+          )}
 
           {editavel && (
             <Link

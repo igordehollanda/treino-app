@@ -40,7 +40,7 @@ export default function Historico() {
   const sequencia = useMemo(() => calculaSequencia(sessoes), [sessoes])
 
   return (
-    <div className="mx-auto max-w-lg p-5">
+    <div className="mx-auto max-w-lg p-5 md:max-w-3xl">
       <h1 className="mb-5 text-2xl font-bold">Histórico</h1>
 
       {ehPersonal && alunos.length > 0 && (
@@ -59,6 +59,16 @@ export default function Historico() {
         </div>
       )}
 
+      {sessoes.length === 0 ? (
+        <div className="rounded-2xl border border-borda bg-cartao p-6 text-center">
+          <p className="font-medium text-slate-300">Nenhum treino registrado ainda.</p>
+          <p className="mt-1 text-sm text-slate-500">
+            Assim que você finalizar o primeiro, aparecem aqui a frequência do mês, a
+            sequência de semanas e a evolução de carga de cada exercício.
+          </p>
+        </div>
+      ) : (
+      <>
       <div className="mb-5 grid grid-cols-3 gap-3">
         <Numero rotulo="este mês" valor={contaNoMes(sessoes, new Date())} />
         <Numero rotulo="sequência" valor={sequencia} sufixo="sem" />
@@ -95,6 +105,8 @@ export default function Historico() {
         )}
         {progressao.length > 0 && <GraficoCarga pontos={progressao} />}
       </section>
+      </>
+      )}
     </div>
   )
 }

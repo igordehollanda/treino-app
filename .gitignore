@@ -10,3 +10,4 @@ dist-ssr
 # harness local de verificacao visual
 foto.mjs
 login-check.mjs
+real.mjs
