@@ -269,27 +269,37 @@ update perfis set nome = 'Novo nome' where nome = 'Nome antigo';
 
 ## Etapa 6 — Pegar as chaves
 
-No menu lateral: **Project Settings** (engrenagem) → **API**.
+No painel novo os dois valores ficam em **paginas diferentes** do menu
+**Project Settings** (engrenagem, no rodape do menu lateral).
 
-Anote dois valores:
+### 6.1 — Project URL
 
-| No painel | Vai para |
-|---|---|
-| **Project URL** (ex: `https://abcdefgh.supabase.co`) | `VITE_SUPABASE_URL` |
-| **anon** / **public** / **publishable** key (texto longo) | `VITE_SUPABASE_ANON_KEY` |
+Menu lateral, secao **INTEGRATIONS** → **Data API**.
 
-> Dependendo da versao do painel, a chave publica aparece como **anon
-> public** ou como **Publishable key**. Sao a mesma coisa para o nosso
-> uso — pegue essa.
+Copie o **Project URL**: `https://xxxxxxxx.supabase.co`
+→ vai para `VITE_SUPABASE_URL`
 
-🚨 **Nunca use a chave `service_role` / `secret`.** Ela ignora toda a
-RLS. Ela nao entra neste projeto, nem no `.env`, nem na Vercel, nem em
-lugar nenhum do front.
+### 6.2 — Chave publica
 
-A chave publica pode ir para o navegador sem medo: sozinha ela nao da
-acesso a nada, porque toda a permissao esta na RLS da Etapa 2.
+Menu lateral, secao **CONFIGURATION** → **API Keys**.
 
----
+Copie a **Publishable key** (`sb_publishable_...`).
+→ vai para `VITE_SUPABASE_ANON_KEY`
+
+> Em projetos mais antigos essa chave aparece como **anon public**, um
+> texto longo comecando com `eyJ...`. As duas funcionam com o app; pegue
+> a que o seu painel oferecer.
+
+🚨 **Nunca as Secret keys / service_role**, que ficam nessa mesma pagina.
+Elas ignoram toda a RLS da Etapa 2. Nao entram no `.env`, nem na Vercel,
+nem em lugar nenhum do front.
+
+A chave publica pode ir para o navegador sem medo: ela vai embutida no
+JavaScript que roda no celular de voces, e sozinha nao da acesso a nada,
+porque toda a permissao esta na RLS.
+
+> **Paineis mais antigos** juntavam tudo em *Project Settings → API*. Se
+> for o seu caso, os dois valores estao la, com os mesmos nomes.
 
 ## Etapa 7 — Rodar no computador
 
