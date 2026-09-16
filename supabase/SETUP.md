@@ -489,20 +489,34 @@ Salve.
 
 ## Etapa 11 — Instalar no celular
 
-Em **cada um dos tres celulares**:
+### iPhone — leia antes, porque tem uma pegadinha
 
-1. Abra a URL da Vercel no navegador.
-2. Faca login pelo link do e-mail.
-3. Instale na tela inicial:
-   - **iPhone (Safari):** botao de compartilhar → **Adicionar a Tela de
-     Início**
-   - **Android (Chrome):** menu `⋮` → **Adicionar à tela inicial** /
-     **Instalar app**
+1. Abra a URL **no Safari**. Nao adianta pelo Chrome: no iOS, so o Safari
+   cria um app de verdade na tela de inicio; o Chrome cria um atalho que
+   abre o Chrome.
+2. Botao de compartilhar → **Adicionar a Tela de Inicio**.
+3. Abra pelo **icone** e faca o login **com senha**, ali dentro.
 
-Vira icone, abre em tela cheia, sem barra de navegador. O login fica
-salvo — nao precisa pedir link toda vez.
+**Por que com senha, e nao pelo link do e-mail:** no iPhone o link do
+e-mail abre sempre no navegador padrao, nunca dentro do app instalado. E
+o app da tela de inicio tem armazenamento proprio, separado do Safari —
+entao logar no navegador **nao** loga no icone. Dentro do app instalado,
+senha e o unico caminho que funciona.
 
----
+Esqueceu a senha? Entre pelo navegador e defina outra em **conta →
+Definir uma senha**; depois use essa no icone.
+
+### Android
+
+Abra no Chrome → menu `⋮` → **Instalar app** / **Adicionar a tela
+inicial**. Aqui o link do e-mail funciona normalmente.
+
+### Se o icone abrir uma versao velha
+
+O app guarda os arquivos para funcionar sem sinal, e as vezes o icone
+fica preso numa versao anterior. Na tela de login ha um **atualizar app**
+no rodape: ele descarta o cache e recarrega, sem precisar apagar e
+reinstalar o icone.
 
 ## Resolucao de problemas
 
@@ -514,6 +528,8 @@ salvo — nao precisa pedir link toda vez.
 | `429` / limite de e-mails | envio do plano Free esgotado | Entre com senha; para resolver de vez, SMTP proprio (Etapa 8) |
 | "E-mail ou senha incorretos" | senha nao definida ou errada | Defina pelo SQL da Etapa 8 e troque no app |
 | Link do e-mail cai em `localhost` | falta a URL da Vercel | Etapa 10.2 |
+| No iPhone, o link do e-mail abre o navegador e o icone segue deslogado | comportamento do iOS | Entre com senha dentro do icone (Etapa 11) |
+| O icone mostra uma tela antiga | cache do app | **atualizar app**, no rodape do login |
 | Treino nao aparece para o aluno | treino sem aluno atribuido | Editor do treino → **Quem faz este treino** |
 | Exercicio some para um dos dois | marcado como "So [outra pessoa]" | Editor → **Para quem** → **Ambos** |
 | Tarja amarela "Sem conexao" | sinal ruim na academia | Normal. Os registros sobem sozinhos depois |

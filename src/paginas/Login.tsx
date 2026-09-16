@@ -4,9 +4,43 @@ import { supabase } from '../lib/supabase'
 
 type Modo = 'senha' | 'link'
 
+/**
+ * O app foi aberto pelo icone da tela de inicio?
+ *
+ * Importa porque no iPhone o link magico do e-mail abre SEMPRE no
+ * navegador padrao, nunca aqui dentro — e o app instalado tem
+ * armazenamento proprio, separado do Safari. Logar no navegador nao loga
+ * no icone. Instalado, so senha resolve.
+ */
+function instalado() {
+  if (typeof window === 'undefined') return false
+  const iosStandalone = (window.navigator as { standalone?: boolean }).standalone === true
+  return iosStandalone || window.matchMedia('(display-mode: standalone)').matches
+}
+
+/** Descarta service worker e caches para sair de uma versao velha presa
+ *  no icone — de dentro do proprio icone, que e o unico lugar de onde da
+ *  para fazer isso no iPhone. */
+async function atualizarApp() {
+  try {
+    if ('serviceWorker' in navigator) {
+      const rs = await navigator.serviceWorker.getRegistrations()
+      await Promise.all(rs.map((r) => r.unregister()))
+    }
+    if (window.caches) {
+      const ks = await caches.keys()
+      await Promise.all(ks.map((k) => caches.delete(k)))
+    }
+  } catch {
+    /* segue para o reload de qualquer forma */
+  }
+  window.location.reload()
+}
+
 export default function Login() {
   // Senha e o padrao porque nao depende de e-mail chegar: o link magico
   // ja deixou as tres pessoas de fora quando o limite de envio estourou.
+  const noIcone = instalado()
   const [modo, setModo] = useState<Modo>('senha')
   const [email, setEmail] = useState('')
   const [senha, setSenha] = useState('')
@@ -46,7 +80,7 @@ export default function Login() {
   }
 
   return (
-    <div className="flex min-h-dvh flex-col items-center justify-center gap-7 p-8">
+    <div className="relative flex min-h-dvh flex-col items-center justify-center gap-7 p-8">
       <div className="text-center">
         <h1 className="text-4xl font-extrabold tracking-tight">Treino</h1>
         <p className="mt-2 text-sm text-suave">Seus treinos e suas cargas.</p>
@@ -111,18 +145,35 @@ export default function Login() {
             </p>
           )}
 
-          <button
-            type="button"
-            onClick={() => {
-              setModo(modo === 'senha' ? 'link' : 'senha')
-              setErro(null)
-            }}
-            className="mt-1 text-center text-sm text-fraco underline"
-          >
-            {modo === 'senha' ? 'prefiro receber um link por e-mail' : 'entrar com senha'}
-          </button>
+          {noIcone ? (
+            <p className="mt-1 text-center text-xs text-fraco">
+              Aqui no app instalado o login é por senha: o link do e-mail abre no
+              navegador, fora daqui. Esqueceu a senha? Entre pelo navegador e defina
+              outra em conta.
+            </p>
+          ) : (
+            <button
+              type="button"
+              onClick={() => {
+                setModo(modo === 'senha' ? 'link' : 'senha')
+                setErro(null)
+              }}
+              className="mt-1 text-center text-sm text-fraco underline"
+            >
+              {modo === 'senha' ? 'prefiro receber um link por e-mail' : 'entrar com senha'}
+            </button>
+          )}
         </form>
       )}
+
+      {/* Saida de emergencia para uma versao velha presa no cache: sem
+          isto, no iPhone, so apagando e reinstalando o icone. */}
+      <button
+        onClick={() => void atualizarApp()}
+        className="absolute bottom-6 text-xs text-fraco/70"
+      >
+        atualizar app
+      </button>
     </div>
   )
 }
