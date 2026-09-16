@@ -1,5 +1,29 @@
 import { useState } from 'react'
+import type { AuthError } from '@supabase/supabase-js'
 import { supabase } from '../lib/supabase'
+
+/**
+ * Traduz o erro do Supabase sem escondê-lo.
+ *
+ * A versao anterior dizia sempre "confira o e-mail", o que mandava a
+ * pessoa procurar um erro de digitacao quando a causa real era o limite
+ * de e-mails do plano gratuito. Mensagem de erro que mente custa mais
+ * caro que mensagem tecnica.
+ */
+function explicar(error: AuthError): string {
+  const m = (error.message ?? '').toLowerCase()
+
+  if (error.status === 429 || m.includes('rate limit') || m.includes('too many')) {
+    return 'Limite de e-mails atingido. O serviço de e-mail do Supabase no plano gratuito envia poucas mensagens por hora, somando as três pessoas. Espere alguns minutos e tente de novo.'
+  }
+  if (m.includes('signups not allowed') || m.includes('otp_disabled') || m.includes('not found')) {
+    return 'Este e-mail não está entre os cadastrados no app.'
+  }
+  if (m.includes('redirect') || m.includes('not allowed') || m.includes('invalid')) {
+    return `O Supabase recusou o endereço deste site. Confira Authentication → URL Configuration. (${error.message})`
+  }
+  return `Não consegui enviar: ${error.message}`
+}
 
 export default function Login() {
   const [email, setEmail] = useState('')
@@ -17,7 +41,7 @@ export default function Login() {
       options: { shouldCreateUser: false, emailRedirectTo: window.location.origin },
     })
     if (error) {
-      setErro('Não consegui enviar. Confira o e-mail — só os três cadastrados entram.')
+      setErro(explicar(error))
       setEstado('parado')
     } else {
       setEstado('enviado')
@@ -57,7 +81,11 @@ export default function Login() {
           >
             {estado === 'enviando' ? 'Enviando...' : 'Entrar'}
           </button>
-          {erro && <p className="text-center text-sm text-rose-400">{erro}</p>}
+          {erro && (
+            <p className="rounded-xl border border-rose-500/30 bg-rose-500/10 px-3 py-2.5 text-sm text-rose-200">
+              {erro}
+            </p>
+          )}
         </form>
       )}
     </div>

@@ -8,9 +8,70 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <link rel="apple-touch-icon" href="/icone-192.png" />
     <title>Treino</title>
+    <style>
+      html { background: #0f172a; color-scheme: dark; }
+      #partida {
+        font: 16px/1.5 system-ui, -apple-system, sans-serif;
+        color: #94a3b8; min-height: 100dvh;
+        display: flex; flex-direction: column; align-items: center; justify-content: center;
+        gap: 16px; padding: 32px; text-align: center;
+      }
+      #resgate { display: none; }
+      #resgate button {
+        margin-top: 12px; padding: 14px 24px; font-size: 16px; font-weight: 600;
+        color: #fff; background: #2563eb; border: 0; border-radius: 12px;
+      }
+    </style>
   </head>
   <body>
-    <div id="root"></div>
+    <!--
+      Se o JavaScript nao carregar (cache velho do PWA apontando para
+      arquivos que nao existem mais), o React nunca monta e a tela fica
+      branca. Este bloco fica visivel ate o app assumir; passados 6
+      segundos, ele oferece a saida sem depender de nada que falhou.
+    -->
+    <div id="root">
+      <div id="partida">
+        <p>Carregando o treino…</p>
+        <div id="resgate">
+          <p>Demorou mais que o normal. A versão guardada no aparelho pode estar desatualizada.</p>
+          <button onclick="limparERecarregar()">Atualizar o app</button>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      setTimeout(function () {
+        var r = document.getElementById('resgate')
+        if (r) r.style.display = 'block'
+      }, 6000)
+
+      // Descarta service worker e caches, preservando o localStorage —
+      // e nele que moram as series ainda nao enviadas.
+      function limparERecarregar() {
+        var fim = function () { location.reload() }
+        var tarefas = []
+        try {
+          if ('serviceWorker' in navigator) {
+            tarefas.push(
+              navigator.serviceWorker.getRegistrations().then(function (rs) {
+                return Promise.all(rs.map(function (r) { return r.unregister() }))
+              })
+            )
+          }
+          if (window.caches) {
+            tarefas.push(
+              caches.keys().then(function (ks) {
+                return Promise.all(ks.map(function (k) { return caches.delete(k) }))
+              })
+            )
+          }
+        } catch (e) { /* segue para o reload de qualquer forma */ }
+        Promise.all(tarefas).then(fim, fim)
+        setTimeout(fim, 3000)
+      }
+      window.limparERecarregar = limparERecarregar
+    </script>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
