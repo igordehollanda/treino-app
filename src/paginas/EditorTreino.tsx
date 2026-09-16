@@ -32,9 +32,9 @@ export default function EditorTreino() {
   }, [treinoId])
 
   if (!ehPersonal) {
-    return <p className="p-8 text-center text-slate-400">Só o personal edita treinos.</p>
+    return <p className="p-8 text-center text-suave">Só o personal edita treinos.</p>
   }
-  if (!treino) return <p className="p-8 text-center text-slate-400">carregando...</p>
+  if (!treino) return <p className="p-8 text-center text-suave">carregando...</p>
 
   async function renomear(nome: string) {
     if (!treino) return
@@ -105,18 +105,18 @@ export default function EditorTreino() {
 
   return (
     <div className="mx-auto max-w-lg p-5 md:max-w-2xl">
-      <button onClick={() => navegar('/treinos')} className="mb-4 text-sm text-slate-400">
+      <button onClick={() => navegar('/treinos')} className="mb-4 text-sm text-suave">
         ← Treinos
       </button>
 
       <input
         value={treino.nome}
         onChange={(e) => void renomear(e.target.value)}
-        className="mb-5 w-full rounded-xl border border-borda bg-cartao px-4 py-3 text-xl font-bold outline-none focus:border-blue-500"
+        className="mb-5 w-full rounded-xl border border-borda bg-superficie px-4 py-3 text-xl font-bold outline-none focus:border-acento"
       />
 
-      <section className="mb-5 rounded-2xl border border-borda bg-cartao p-4">
-        <p className="mb-3 text-sm text-slate-400">Quem faz este treino</p>
+      <section className="mb-5 rounded-2xl border border-borda bg-superficie p-4">
+        <p className="mb-3 text-sm text-suave">Quem faz este treino</p>
         <div className="flex gap-2">
           {alunos.map((a) => {
             const marcado = treino.alunos.includes(a.id)
@@ -125,7 +125,7 @@ export default function EditorTreino() {
                 key={a.id}
                 onClick={() => void alternarAluno(a.id)}
                 className={`flex-1 rounded-xl border py-2.5 text-sm font-medium ${
-                  marcado ? 'border-blue-500 bg-blue-500/15 text-blue-300' : 'border-borda text-slate-400'
+                  marcado ? 'border-acento bg-acento/15 text-acento' : 'border-borda text-suave'
                 }`}
               >
                 {a.nome}
@@ -139,7 +139,7 @@ export default function EditorTreino() {
         <h2 className="font-semibold">Exercícios</h2>
         <button
           onClick={() => setAdicionando(true)}
-          className="rounded-lg bg-blue-600 px-3 py-1.5 text-sm font-medium"
+          className="rounded-lg bg-acento px-3 py-1.5 text-sm font-medium"
         >
           + Adicionar
         </button>
@@ -173,7 +173,7 @@ export default function EditorTreino() {
 
       <button
         onClick={() => void excluir()}
-        className="mt-8 w-full rounded-xl border border-rose-900 py-2.5 text-sm text-rose-400"
+        className="mt-8 w-full rounded-xl border border-erro/40 py-2.5 text-sm text-erro"
       >
         Apagar treino
       </button>
@@ -237,21 +237,21 @@ function LinhaItem({
 
   return (
     <div
-      className={`rounded-2xl border bg-cartao p-4 ${
-        item.grupo != null ? 'border-violet-500/40' : 'border-borda'
+      className={`rounded-2xl border bg-superficie p-4 ${
+        item.grupo != null ? 'border-biset/40' : 'border-borda'
       }`}
     >
       {item.grupo != null && (
-        <p className="mb-2 text-[10px] font-bold uppercase tracking-wide text-violet-300">
+        <p className="mb-2 text-[10px] font-bold uppercase tracking-wide text-biset">
           Bi-set com o exercício acima
         </p>
       )}
       <div className="flex items-start justify-between gap-2">
         <h3 className="min-w-0 truncate font-medium">{item.exercicios?.nome}</h3>
-        <div className="flex shrink-0 gap-1 text-slate-500">
+        <div className="flex shrink-0 gap-1 text-fraco">
           <button onClick={() => aoMover(-1)} disabled={primeiro} className="px-2 disabled:opacity-25">↑</button>
           <button onClick={() => aoMover(1)} disabled={ultimo} className="px-2 disabled:opacity-25">↓</button>
-          <button onClick={() => void aoApagar()} className="px-2 text-rose-400">×</button>
+          <button onClick={() => void aoApagar()} className="px-2 text-erro">×</button>
         </div>
       </div>
 
@@ -270,7 +270,7 @@ function LinhaItem({
 
       {/* O coracao do "treinamos juntos com pequenas diferencas". */}
       <div className="mt-3">
-        <p className="mb-1.5 text-xs text-slate-500">Para quem</p>
+        <p className="mb-1.5 text-xs text-fraco">Para quem</p>
         <div className="flex gap-2">
           <Opcao
             ativa={perfilId === null}
@@ -299,7 +299,7 @@ function LinhaItem({
         onChange={(e) => setObservacao(e.target.value)}
         onBlur={() => salvar()}
         placeholder="observação (ex: pegada aberta)"
-        className="mt-3 w-full rounded-lg border border-borda bg-slate-800 px-3 py-2 text-sm outline-none focus:border-blue-500"
+        className="mt-3 w-full rounded-lg border border-borda bg-elevado px-3 py-2 text-sm outline-none focus:border-acento"
       />
 
       {anterior && (
@@ -307,8 +307,8 @@ function LinhaItem({
           onClick={() => aoAlternarBiset(anterior)}
           className={`mt-2 w-full rounded-lg border py-2 text-xs font-medium ${
             item.grupo != null
-              ? 'border-violet-500 bg-violet-500/15 text-violet-300'
-              : 'border-borda text-slate-400'
+              ? 'border-biset bg-biset/15 text-biset'
+              : 'border-borda text-suave'
           }`}
         >
           {item.grupo != null ? 'Separar do exercício acima' : 'Fazer em bi-set com o de cima'}
@@ -330,14 +330,14 @@ function Mini({
 }) {
   return (
     <label className="flex flex-col gap-1">
-      <span className="text-xs text-slate-500">{rotulo}</span>
+      <span className="text-xs text-fraco">{rotulo}</span>
       <input
         inputMode={texto ? 'text' : 'numeric'}
         value={valor}
         placeholder={placeholder}
         onChange={(e) => aoMudar(e.target.value)}
         onBlur={aoSair}
-        className="w-full rounded-lg border border-borda bg-slate-800 px-3 py-2 text-base outline-none focus:border-blue-500"
+        className="w-full rounded-lg border border-borda bg-elevado px-3 py-2 text-base outline-none focus:border-acento"
       />
     </label>
   )
@@ -348,7 +348,7 @@ function Opcao({ ativa, rotulo, aoClicar }: { ativa: boolean; rotulo: string; ao
     <button
       onClick={aoClicar}
       className={`flex-1 rounded-lg border py-2 text-xs font-medium ${
-        ativa ? 'border-blue-500 bg-blue-500/15 text-blue-300' : 'border-borda text-slate-400'
+        ativa ? 'border-acento bg-acento/15 text-acento' : 'border-borda text-suave'
       }`}
     >
       {rotulo}
@@ -377,9 +377,9 @@ function SeletorExercicio({
           value={busca}
           onChange={(e) => setBusca(e.target.value)}
           placeholder="buscar exercício"
-          className="flex-1 rounded-xl border border-borda bg-cartao px-4 py-3 text-base outline-none focus:border-blue-500"
+          className="flex-1 rounded-xl border border-borda bg-superficie px-4 py-3 text-base outline-none focus:border-acento"
         />
-        <button onClick={aoFechar} className="text-sm text-slate-400">cancelar</button>
+        <button onClick={aoFechar} className="text-sm text-suave">cancelar</button>
       </div>
 
       <div className="flex-1 overflow-y-auto p-4">
@@ -389,7 +389,7 @@ function SeletorExercicio({
               const id = await aoCriar(busca.trim(), null)
               await aoEscolher(id)
             }}
-            className="mb-3 w-full rounded-xl bg-blue-600 py-3 text-sm font-semibold"
+            className="mb-3 w-full rounded-xl bg-acento py-3 text-sm font-semibold"
           >
             Criar "{busca.trim()}"
           </button>
@@ -399,11 +399,11 @@ function SeletorExercicio({
             <li key={e.id}>
               <button
                 onClick={() => void aoEscolher(e.id)}
-                className="w-full rounded-xl px-3 py-3 text-left active:bg-cartao"
+                className="w-full rounded-xl px-3 py-3 text-left active:bg-superficie"
               >
                 <span className="block">{e.nome}</span>
                 {e.grupo_muscular && (
-                  <span className="text-xs text-slate-500">{e.grupo_muscular}</span>
+                  <span className="text-xs text-fraco">{e.grupo_muscular}</span>
                 )}
               </button>
             </li>

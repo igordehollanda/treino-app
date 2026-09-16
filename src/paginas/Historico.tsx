@@ -41,7 +41,7 @@ export default function Historico() {
 
   return (
     <div className="mx-auto max-w-lg p-5 md:max-w-3xl">
-      <h1 className="mb-5 text-2xl font-bold">Histórico</h1>
+      <h1 className="mb-5 text-[26px] font-extrabold">Histórico</h1>
 
       {ehPersonal && alunos.length > 0 && (
         <div className="mb-5 flex gap-2">
@@ -50,7 +50,7 @@ export default function Historico() {
               key={a.id}
               onClick={() => setVendo(a.id)}
               className={`flex-1 rounded-xl border py-2.5 text-sm font-medium ${
-                vendo === a.id ? 'border-blue-500 bg-blue-500/15 text-blue-300' : 'border-borda text-slate-400'
+                vendo === a.id ? 'border-acento bg-acento/15 text-acento' : 'border-borda text-suave'
               }`}
             >
               {a.nome}
@@ -60,9 +60,9 @@ export default function Historico() {
       )}
 
       {sessoes.length === 0 ? (
-        <div className="rounded-2xl border border-borda bg-cartao p-6 text-center">
-          <p className="font-medium text-slate-300">Nenhum treino registrado ainda.</p>
-          <p className="mt-1 text-sm text-slate-500">
+        <div className="rounded-2xl border border-borda bg-superficie p-6 text-center">
+          <p className="font-medium text-texto">Nenhum treino registrado ainda.</p>
+          <p className="mt-1 text-sm text-fraco">
             Assim que você finalizar o primeiro, aparecem aqui a frequência do mês, a
             sequência de semanas e a evolução de carga de cada exercício.
           </p>
@@ -75,24 +75,24 @@ export default function Historico() {
         <Numero rotulo="total" valor={sessoes.length} />
       </div>
 
-      <section className="mb-6 rounded-2xl border border-borda bg-cartao p-4">
-        <h2 className="mb-3 text-sm text-slate-400">Frequência</h2>
+      <section className="mb-6 rounded-2xl border border-borda bg-superficie p-4">
+        <h2 className="rotulo mb-3">Frequência</h2>
         <div className="flex flex-col gap-4">
           {porMes.slice(0, 3).map(([mes, dias]) => (
             <Mes key={mes} mes={mes} dias={dias} />
           ))}
           {porMes.length === 0 && (
-            <p className="text-sm text-slate-500">Nenhum treino registrado ainda.</p>
+            <p className="text-sm text-fraco">Nenhum treino registrado ainda.</p>
           )}
         </div>
       </section>
 
-      <section className="rounded-2xl border border-borda bg-cartao p-4">
-        <h2 className="mb-3 text-sm text-slate-400">Evolução de carga</h2>
+      <section className="rounded-2xl border border-borda bg-superficie p-4">
+        <h2 className="rotulo mb-3">Evolução de carga</h2>
         <select
           value={exercicioId}
           onChange={(e) => setExercicioId(e.target.value)}
-          className="mb-4 w-full rounded-xl border border-borda bg-slate-800 px-3 py-3 text-base outline-none focus:border-blue-500"
+          className="mb-4 w-full rounded-xl border border-borda bg-elevado px-3 py-3 text-base outline-none focus:border-acento"
         >
           <option value="">escolha um exercício</option>
           {exercicios.map((e) => (
@@ -101,7 +101,7 @@ export default function Historico() {
         </select>
 
         {exercicioId && progressao.length === 0 && (
-          <p className="text-sm text-slate-500">Sem registros desse exercício.</p>
+          <p className="text-sm text-fraco">Sem registros desse exercício.</p>
         )}
         {progressao.length > 0 && <GraficoCarga pontos={progressao} />}
       </section>
@@ -113,12 +113,12 @@ export default function Historico() {
 
 function Numero({ rotulo, valor, sufixo }: { rotulo: string; valor: number; sufixo?: string }) {
   return (
-    <div className="rounded-2xl border border-borda bg-cartao p-3 text-center">
-      <p className="text-2xl font-bold tabular-nums">
+    <div className="rounded-2xl border border-borda bg-superficie p-3 text-center">
+      <p className="valor text-3xl">
         {valor}
-        {sufixo && <span className="ml-0.5 text-xs font-normal text-slate-500">{sufixo}</span>}
+        {sufixo && <span className="ml-0.5 text-xs font-normal text-fraco">{sufixo}</span>}
       </p>
-      <p className="mt-0.5 text-xs text-slate-500">{rotulo}</p>
+      <p className="rotulo mt-1">{rotulo}</p>
     </div>
   )
 }
@@ -131,9 +131,9 @@ function Mes({ mes, dias }: { mes: string; dias: Set<number> }) {
 
   return (
     <div>
-      <p className="mb-2 text-xs font-medium uppercase tracking-wide text-slate-500">
+      <p className="mb-2 text-xs font-medium uppercase tracking-wide text-fraco">
         {new Date(ano, m - 1, 1).toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })}
-        <span className="ml-2 text-slate-400">{dias.size} treinos</span>
+        <span className="ml-2 text-suave">{dias.size} treinos</span>
       </p>
       <div className="grid grid-cols-7 gap-1">
         {Array.from({ length: primeiroDiaSemana }, (_, i) => <div key={`v${i}`} />)}
@@ -141,7 +141,7 @@ function Mes({ mes, dias }: { mes: string; dias: Set<number> }) {
           <div
             key={d}
             className={`flex aspect-square items-center justify-center rounded-md text-[11px] ${
-              dias.has(d) ? 'bg-emerald-500 font-semibold text-emerald-950' : 'bg-slate-800 text-slate-600'
+              dias.has(d) ? 'bg-feito font-semibold text-fundo' : 'bg-elevado text-fraco/70'
             }`}
           >
             {d}

@@ -8,6 +8,7 @@ import {
   sessaoLocal, treinosEmCache,
 } from '../lib/db'
 import { repsDoDia } from '../lib/periodizacao'
+import { linkDeExecucao } from '../lib/execucao'
 import GraficoCarga from '../componentes/GraficoCarga'
 import type {
   PontoProgressao, SemanaCiclo, Sessao, SerieRegistro, TreinoCompleto, TreinoExercicio,
@@ -191,7 +192,7 @@ export default function Execucao() {
   }
 
   if (!treino || !sessao) {
-    return <div className="p-8 text-center text-slate-400">carregando treino…</div>
+    return <div className="p-8 text-center text-suave">carregando treino…</div>
   }
 
   // A barra de descanso flutua por cima: o espaco extra embaixo evita que
@@ -201,23 +202,23 @@ export default function Execucao() {
       <header className="sticky top-0 z-10 border-b border-borda bg-fundo/95 px-5 py-3 backdrop-blur">
         <div className="mx-auto flex max-w-lg items-center justify-between gap-3">
           <div className="min-w-0">
-            <h1 className="truncate text-lg font-bold">{treino.nome}</h1>
-            <p className="text-xs text-slate-400">
-              {feitas} de {totalSeries} séries
+            <h1 className="truncate text-lg font-extrabold">{treino.nome}</h1>
+            <p className="text-xs text-suave">
+              <span className="font-bold text-texto">{feitas}</span> de {totalSeries} séries
               {semana && (
-                <span className="text-slate-300">
+                <span className="text-texto">
                   {' · '}semana {semana.semana} · {semana.reps} reps
                 </span>
               )}
             </p>
           </div>
-          <button onClick={() => navegar('/')} className="shrink-0 text-sm text-slate-400">
+          <button onClick={() => navegar('/')} className="shrink-0 text-sm text-suave">
             voltar
           </button>
         </div>
         <div className="mx-auto mt-2 h-1 max-w-lg overflow-hidden rounded-full bg-borda">
           <div
-            className="h-full bg-emerald-500 transition-all duration-300"
+            className="h-full bg-feito transition-all duration-300"
             style={{ width: `${totalSeries ? (feitas / totalSeries) * 100 : 0}%` }}
           />
         </div>
@@ -258,7 +259,7 @@ export default function Execucao() {
         <button
           onClick={() => void terminar()}
           disabled={finalizando}
-          className="mt-2 rounded-2xl bg-emerald-600 py-4 text-base font-semibold active:bg-emerald-700 disabled:opacity-50"
+          className="mt-2 rounded-2xl bg-feito py-4 text-base font-semibold active:bg-feito/80 disabled:opacity-50"
         >
           {finalizando ? 'Salvando…' : 'Finalizar treino'}
         </button>
@@ -310,20 +311,20 @@ function CartaoBloco({
       <section ref={ref as React.Ref<HTMLElement>}>
         <button
           onClick={aoReabrir}
-          className="flex w-full items-center gap-3 rounded-2xl border border-emerald-600/30 bg-emerald-950/20 px-4 py-3 text-left"
+          className="flex w-full items-center gap-3 rounded-2xl border border-feito/30 bg-feito/10 px-4 py-3 text-left"
         >
-          <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-emerald-600 text-sm font-bold">
+          <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-feito text-sm font-bold">
             ✓
           </span>
           <span className="min-w-0 flex-1">
-            <span className="block truncate text-sm font-medium text-slate-300">
+            <span className="block truncate text-sm font-medium text-texto">
               {bloco.itens.map(nomeDe).join(' + ')}
             </span>
-            <span className="text-xs text-slate-500">
+            <span className="text-xs text-fraco">
               {bloco.itens.map((i) => resumo(i, marcadas)).filter(Boolean).join(' · ')}
             </span>
           </span>
-          <span className="shrink-0 text-xs text-slate-600">editar</span>
+          <span className="shrink-0 text-xs text-fraco/70">editar</span>
         </button>
       </section>
     )
@@ -332,10 +333,10 @@ function CartaoBloco({
   return (
     <section
       ref={ref as React.Ref<HTMLElement>}
-      className="scroll-mt-24 rounded-2xl border border-borda bg-cartao p-4"
+      className="scroll-mt-24 rounded-2xl border border-borda bg-superficie p-4"
     >
       {bloco.biset && (
-        <p className="mb-2 inline-block rounded-full bg-violet-500/15 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-violet-300">
+        <p className="mb-2 inline-block rounded-full bg-biset/15 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-biset">
           Bi-set · sem descanso entre eles
         </p>
       )}
@@ -350,22 +351,32 @@ function CartaoBloco({
           >
             <span className="min-w-0">
               <span className="font-semibold leading-tight">{nomeDe(item)}</span>
-              <span className="ml-1.5 text-xs text-slate-600">
+              <span className="ml-1.5 text-xs text-fraco/70">
                 {progressaoDe === item.exercicio_id ? '▴' : '▾'}
               </span>
             </span>
-            <span className="shrink-0 text-sm text-slate-400">
+            <span className="shrink-0 text-sm text-suave">
               {item.series} × {repsDoDia(item, semana)}
-              {item.reps && <span className="ml-1 text-amber-400/80">fixo</span>}
+              {item.reps && <span className="ml-1 text-alerta/80">fixo</span>}
             </span>
           </button>
 
           {progressaoDe === item.exercicio_id && (
-            <ProgressaoInline perfilId={perfilId} exercicioId={item.exercicio_id} />
+            <>
+              <ProgressaoInline perfilId={perfilId} exercicioId={item.exercicio_id} />
+              <a
+                href={linkDeExecucao(nomeDe(item), item.exercicios?.video_url ?? null)}
+                target="_blank"
+                rel="noreferrer"
+                className="mt-2 flex items-center justify-center gap-2 rounded-xl border border-borda py-2.5 text-sm font-medium text-suave active:bg-elevado"
+              >
+                ▶ ver execução
+              </a>
+            </>
           )}
 
           {item.observacao && (
-            <p className="mt-2 rounded-lg bg-amber-500/10 px-3 py-2 text-sm text-amber-200">
+            <p className="mt-2 rounded-lg bg-alerta/10 px-3 py-2 text-sm text-alerta">
               {item.observacao}
             </p>
           )}
@@ -373,7 +384,7 @@ function CartaoBloco({
       ))}
 
       {!bloco.biset && bloco.itens[0].descanso_seg > 0 && (
-        <p className="mt-0.5 text-sm text-slate-400">
+        <p className="mt-0.5 text-sm text-suave">
           descanso {bloco.itens[0].descanso_seg}s
         </p>
       )}
@@ -382,7 +393,7 @@ function CartaoBloco({
         const item = bloco.itens[0]
         const u = cargas[item.exercicio_id]
         return !bloco.biset && u ? (
-          <p className="mt-1 text-xs text-slate-500">
+          <p className="mt-1 text-xs text-fraco">
             última vez: {u.carga_kg}kg{u.reps ? ` × ${u.reps}` : ''} ·{' '}
             {dataCurta(u.registrada_em)}
           </p>
@@ -393,11 +404,9 @@ function CartaoBloco({
         {Array.from({ length: maxSeries }, (_, i) => i + 1).map((serie) => {
           const participantes = bloco.itens.filter((i) => serie <= i.series)
           return (
-            <div key={serie} className={bloco.biset ? 'rounded-xl bg-slate-800/40 p-2' : ''}>
+            <div key={serie} className={bloco.biset ? 'rounded-xl bg-elevado/40 p-2' : ''}>
               {bloco.biset && (
-                <p className="mb-1.5 px-1 text-[11px] font-medium uppercase tracking-wide text-slate-500">
-                  Série {serie}
-                </p>
+                <p className="rotulo mb-1.5 px-1">Série {serie}</p>
               )}
               {participantes.map((item, j) => {
                 const ultimo = j === participantes.length - 1
@@ -468,7 +477,7 @@ function LinhaSerie({
           aria-label={aberto ? 'Fechar ajustes' : 'Ajustar carga e RIR'}
           className={`h-12 shrink-0 truncate rounded-lg text-center ${
             compacto ? 'w-[4.5rem] px-1 text-[11px]' : 'w-9 text-sm'
-          } ${aberto ? 'bg-slate-700 text-slate-200' : 'text-slate-500'}`}
+          } ${aberto ? 'bg-borda text-texto' : 'text-fraco'}`}
         >
           {rotulo}
         </button>
@@ -495,9 +504,9 @@ function LinhaSerie({
           className={`relative flex h-14 w-14 shrink-0 items-center justify-center rounded-xl text-2xl font-bold transition-colors ${
             feita
               ? marcada.rir === 0
-                ? 'bg-amber-600 text-white'
-                : 'bg-emerald-600 text-white'
-              : 'border border-borda bg-slate-800 text-slate-500 active:bg-slate-700'
+                ? 'bg-alerta text-white'
+                : 'bg-feito text-white'
+              : 'border border-borda bg-elevado text-fraco active:bg-borda-forte'
           }`}
         >
           ✓
@@ -539,14 +548,14 @@ function PainelSerie({
   const semRoubarFoco = (e: React.MouseEvent) => e.preventDefault()
 
   return (
-    <div className="mt-2 flex flex-col gap-2 rounded-xl border border-borda bg-slate-800/60 p-2">
+    <div className="mt-2 flex flex-col gap-2 rounded-xl border border-borda bg-elevado/60 p-2">
       <div className="grid grid-cols-6 gap-1">
         {DELTAS.map((d) => (
           <button
             key={d}
             onMouseDown={semRoubarFoco}
             onClick={() => aoAlterar('carga', somarCarga(marcada.carga || padroes.carga, d))}
-            className="h-11 rounded-lg bg-slate-700 text-xs font-semibold tabular-nums active:bg-slate-600"
+            className="h-11 rounded-lg bg-borda text-xs font-semibold tabular-nums active:bg-borda-forte"
           >
             {d > 0 ? '+' : '−'}
             {String(Math.abs(d)).replace('.', ',')}
@@ -555,7 +564,7 @@ function PainelSerie({
       </div>
 
       <div className="flex items-center gap-1">
-        <span className="w-9 shrink-0 text-center text-[11px] font-medium text-slate-500">
+        <span className="w-9 shrink-0 text-center text-[11px] font-medium text-fraco">
           RIR
         </span>
         {OPCOES_RIR.map((o) => (
@@ -566,9 +575,9 @@ function PainelSerie({
             className={`h-11 flex-1 rounded-lg text-xs font-semibold ${
               marcada.rir === o.valor
                 ? o.valor === 0
-                  ? 'bg-amber-600 text-white'
-                  : 'bg-blue-600 text-white'
-                : 'bg-slate-700 text-slate-300 active:bg-slate-600'
+                  ? 'bg-alerta text-white'
+                  : 'bg-acento text-white'
+                : 'bg-borda text-texto active:bg-borda-forte'
             }`}
           >
             {o.rotulo}
@@ -603,11 +612,11 @@ function Campo({
           const alvo = e.target
           setTimeout(() => alvo.scrollIntoView({ block: 'center', behavior: 'smooth' }), 250)
         }}
-        className={`w-full rounded-xl border py-3 pl-2.5 pr-8 text-base outline-none focus:border-blue-500 ${
-          feita ? 'border-emerald-600/40 bg-emerald-950/30' : 'border-borda bg-slate-800'
+        className={`w-full rounded-xl border py-3 pl-2.5 pr-8 text-base outline-none focus:border-acento ${
+          feita ? 'border-feito/40 bg-feito/10' : 'border-borda bg-elevado'
         }`}
       />
-      <span className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-[10px] text-slate-500">
+      <span className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-[10px] text-fraco">
         {sufixo}
       </span>
     </div>
@@ -634,10 +643,10 @@ function ProgressaoInline({
   }, [perfilId, exercicioId])
 
   return (
-    <div className="mt-2 rounded-xl border border-borda bg-slate-800/40 p-3">
-      {pontos === null && <p className="text-xs text-slate-500">carregando…</p>}
+    <div className="mt-2 rounded-xl border border-borda bg-elevado/40 p-3">
+      {pontos === null && <p className="text-xs text-fraco">carregando…</p>}
       {pontos?.length === 0 && (
-        <p className="text-xs text-slate-500">Primeira vez neste exercício.</p>
+        <p className="text-xs text-fraco">Primeira vez neste exercício.</p>
       )}
       {pontos && pontos.length > 0 && <GraficoCarga pontos={pontos} altura="h-20" maximo={8} />}
     </div>
@@ -653,21 +662,21 @@ function BarraDescanso({
 }) {
   return (
     <div
-      className="fixed inset-x-0 bottom-0 z-20 border-t border-borda bg-cartao px-5 py-3"
+      className="fixed inset-x-0 bottom-0 z-20 border-t border-borda bg-superficie px-5 py-3"
       style={{ paddingBottom: 'calc(0.75rem + env(safe-area-inset-bottom))' }}
     >
       <div className="mx-auto flex max-w-lg items-center gap-3">
         <div className="flex-1">
-          <p className="text-xs text-slate-400">Descanso</p>
-          <p className="font-mono text-2xl font-bold tabular-nums">
+          <p className="rotulo">Descanso</p>
+          <p className="valor text-3xl">
             {String(Math.floor(segundos / 60)).padStart(2, '0')}:
             {String(segundos % 60).padStart(2, '0')}
           </p>
         </div>
-        <button onClick={aoSomar} className="rounded-xl bg-slate-700 px-4 py-2.5 text-sm font-medium">
+        <button onClick={aoSomar} className="rounded-xl bg-borda px-4 py-2.5 text-sm font-medium">
           +30s
         </button>
-        <button onClick={aoPular} className="rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-medium">
+        <button onClick={aoPular} className="rounded-xl bg-acento px-4 py-2.5 text-sm font-medium">
           Pular
         </button>
       </div>

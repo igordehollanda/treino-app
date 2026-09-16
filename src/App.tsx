@@ -17,15 +17,15 @@ export default function App() {
     return (
       <div className="mx-auto flex min-h-dvh max-w-md flex-col justify-center gap-3 p-8">
         <h1 className="text-xl font-bold">Falta conectar o Supabase</h1>
-        <p className="text-sm text-slate-400">
-          Copie <code className="text-slate-200">.env.example</code> para{' '}
-          <code className="text-slate-200">.env</code> e preencha{' '}
-          <code className="text-slate-200">VITE_SUPABASE_URL</code> e{' '}
-          <code className="text-slate-200">VITE_SUPABASE_ANON_KEY</code>.
+        <p className="text-sm text-suave">
+          Copie <code className="text-texto">.env.example</code> para{' '}
+          <code className="text-texto">.env</code> e preencha{' '}
+          <code className="text-texto">VITE_SUPABASE_URL</code> e{' '}
+          <code className="text-texto">VITE_SUPABASE_ANON_KEY</code>.
         </p>
-        <p className="text-sm text-slate-400">
+        <p className="text-sm text-suave">
           O passo a passo completo está em{' '}
-          <code className="text-slate-200">supabase/SETUP.md</code>.
+          <code className="text-texto">supabase/SETUP.md</code>.
         </p>
       </div>
     )
@@ -33,7 +33,7 @@ export default function App() {
 
   if (carregando) {
     return (
-      <div className="flex min-h-dvh items-center justify-center text-slate-400">
+      <div className="flex min-h-dvh items-center justify-center text-suave">
         carregando...
       </div>
     )
@@ -47,7 +47,7 @@ export default function App() {
     return (
       <div className="flex min-h-dvh flex-col items-center justify-center gap-4 p-8 text-center">
         <p className="text-lg font-semibold">Esta conta não tem acesso.</p>
-        <p className="text-sm text-slate-400">
+        <p className="text-sm text-suave">
           O app é de uso privado. Crie o perfil no Supabase (veja supabase/SETUP.md).
         </p>
         <BotaoSair />
@@ -73,7 +73,7 @@ export default function App() {
 function BotaoSair() {
   const { sair } = useAuth()
   return (
-    <button onClick={() => void sair()} className="rounded-lg bg-slate-700 px-4 py-2 text-sm">
+    <button onClick={() => void sair()} className="rounded-lg bg-borda px-4 py-2 text-sm">
       Sair
     </button>
   )

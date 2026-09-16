@@ -1,22 +1,58 @@
 @import 'tailwindcss';
 
+/* =====================================================================
+   Sistema visual
+   O conteudo real deste app sao numeros: carga, series, repeticoes,
+   tempo. As escolhas abaixo servem a isso — numerais tabulares, peso
+   alto nos valores, e uma hierarquia de superficies que deixa o dado
+   na frente da moldura.
+   ===================================================================== */
+
 @theme {
-  --color-fundo: #0f172a;
-  --color-cartao: #1e293b;
-  --color-borda: #334155;
+  --font-sans: 'Manrope', ui-sans-serif, system-ui, -apple-system, sans-serif;
+
+  /* Quatro niveis de profundidade, nao um so. E o que dava o aspecto
+     chapado de "tudo e um retangulo escuro igual". */
+  --color-fundo: #090d12;
+  --color-superficie: #141a22;
+  --color-elevado: #1d252f;
+  --color-borda: #27313d;
+  --color-borda-forte: #3a4757;
+
+  --color-texto: #e9eff5;
+  --color-suave: #8e9caa;
+  --color-fraco: #5c6875;
+
+  --color-acento: #2f6bff;
+  --color-acento-forte: #1b53df;
+  --color-feito: #15c07a;
+  --color-alerta: #f2a03d;
+  --color-biset: #8b5cf6;
+  --color-erro: #f26d6d;
+}
+
+:root {
+  color-scheme: dark;
 }
 
 html {
-  color-scheme: dark;
-  /* Impede o zoom-ao-focar do iOS nos campos de carga. */
   -webkit-text-size-adjust: 100%;
 }
 
 body {
   background: var(--color-fundo);
-  color: #f1f5f9;
+  color: var(--color-texto);
   overscroll-behavior-y: contain;
   -webkit-tap-highlight-color: transparent;
+  /* Numerais de largura fixa: sem isto, 111 e 999 tem larguras
+     diferentes e a coluna de cargas dança a cada serie marcada. */
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.011em;
+}
+
+/* Titulos mais fechados: em peso alto, o espacamento padrao abre demais. */
+h1, h2, h3 {
+  letter-spacing: -0.021em;
 }
 
 /* Campos numericos sem as setinhas: na academia o teclado e o dedo bastam. */
@@ -27,4 +63,23 @@ input[type='number']::-webkit-outer-spin-button {
 }
 input[type='number'] {
   -moz-appearance: textfield;
+}
+
+input::placeholder {
+  color: var(--color-fraco);
+}
+
+/* Rotulo de secao: caixa alta pequena, o unico lugar onde ela aparece. */
+.rotulo {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--color-fraco);
+}
+
+/* O valor e o protagonista da linha. */
+.valor {
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
 }

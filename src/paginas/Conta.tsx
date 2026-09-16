@@ -37,19 +37,19 @@ export default function Conta() {
 
   return (
     <div className="mx-auto max-w-lg p-5 md:max-w-xl">
-      <button onClick={() => navegar('/')} className="mb-4 text-sm text-slate-400">
+      <button onClick={() => navegar('/')} className="mb-4 text-sm text-suave">
         ← Hoje
       </button>
 
       <h1 className="text-2xl font-bold">{perfil?.nome}</h1>
-      <p className="mt-0.5 text-sm text-slate-400">{sessao?.user.email}</p>
-      <p className="mt-1 text-sm text-slate-500">
+      <p className="mt-0.5 text-sm text-suave">{sessao?.user.email}</p>
+      <p className="mt-1 text-sm text-fraco">
         {perfil?.papel === 'personal' ? 'Personal' : 'Aluno'}
       </p>
 
       <form onSubmit={salvar} className="mt-6 flex flex-col gap-3">
-        <h2 className="text-sm font-medium text-slate-300">Definir uma senha</h2>
-        <p className="-mt-1 text-xs text-slate-500">
+        <h2 className="text-sm font-medium text-texto">Definir uma senha</h2>
+        <p className="-mt-1 text-xs text-fraco">
           Com senha você entra mesmo quando o e-mail do link não chega.
         </p>
 
@@ -59,7 +59,7 @@ export default function Conta() {
           placeholder="nova senha"
           value={senha}
           onChange={(e) => setSenha(e.target.value)}
-          className="rounded-xl border border-borda bg-cartao px-4 py-3.5 text-base outline-none focus:border-blue-500"
+          className="rounded-xl border border-borda bg-superficie px-4 py-3.5 text-base outline-none focus:border-acento"
         />
         <input
           type="password"
@@ -67,24 +67,24 @@ export default function Conta() {
           placeholder="repita a senha"
           value={repetida}
           onChange={(e) => setRepetida(e.target.value)}
-          className="rounded-xl border border-borda bg-cartao px-4 py-3.5 text-base outline-none focus:border-blue-500"
+          className="rounded-xl border border-borda bg-superficie px-4 py-3.5 text-base outline-none focus:border-acento"
         />
 
         <button
           type="submit"
           disabled={estado === 'salvando'}
-          className="rounded-xl bg-blue-600 py-3.5 font-semibold active:bg-blue-700 disabled:opacity-50"
+          className="rounded-xl bg-acento py-3.5 font-semibold active:bg-acento-forte disabled:opacity-50"
         >
           {estado === 'salvando' ? 'Salvando…' : 'Salvar senha'}
         </button>
 
         {estado === 'salva' && (
-          <p className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-3 py-2.5 text-sm text-emerald-200">
+          <p className="rounded-xl border border-feito/30 bg-feito/10 px-3 py-2.5 text-sm text-feito">
             Senha salva. Já dá para entrar com ela.
           </p>
         )}
         {erro && (
-          <p className="rounded-xl border border-rose-500/30 bg-rose-500/10 px-3 py-2.5 text-sm text-rose-200">
+          <p className="rounded-xl border border-erro/30 bg-erro/10 px-3 py-2.5 text-sm text-erro">
             {erro}
           </p>
         )}
@@ -92,7 +92,7 @@ export default function Conta() {
 
       <button
         onClick={() => void sair()}
-        className="mt-8 w-full rounded-xl border border-borda py-3 text-sm text-slate-400"
+        className="mt-8 w-full rounded-xl border border-borda py-3 text-sm text-suave"
       >
         Sair
       </button>

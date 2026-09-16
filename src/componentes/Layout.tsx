@@ -21,7 +21,7 @@ export default function Layout() {
   return (
     <div className="min-h-dvh pb-20 md:pb-10">
       {(!online || naFila > 0) && (
-        <div className="sticky top-0 z-10 bg-amber-500/90 px-4 py-1.5 text-center text-xs font-medium text-amber-950">
+        <div className="sticky top-0 z-10 bg-alerta px-4 py-1.5 text-center text-xs font-medium text-fundo">
           {online
             ? `Sincronizando ${naFila} registro${naFila > 1 ? 's' : ''}...`
             : 'Sem conexão — seus registros estão salvos e sobem depois'}
@@ -33,7 +33,7 @@ export default function Layout() {
           a ponta numa tela larga, os tres itens ficam a meio metro um do
           outro e a barra parece quebrada. */}
       <nav
-        className="fixed inset-x-0 bottom-0 z-10 grid grid-cols-3 border-t border-borda bg-cartao/95 backdrop-blur
+        className="fixed inset-x-0 bottom-0 z-10 grid grid-cols-3 border-t border-borda bg-superficie/95 backdrop-blur
                    md:static md:mx-auto md:mt-5 md:flex md:w-fit md:gap-1 md:rounded-xl md:border md:border-borda md:p-1"
         style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
       >
@@ -55,8 +55,8 @@ function Aba({ para, rotulo }: { para: string; rotulo: string }) {
       className={({ isActive }) =>
         `py-3.5 text-center text-sm font-medium transition-colors md:rounded-lg md:px-7 md:py-2 ${
           isActive
-            ? 'text-blue-400 md:bg-blue-600 md:text-white'
-            : 'text-slate-400 md:hover:text-slate-200'
+            ? 'text-acento md:bg-acento md:text-white'
+            : 'text-suave md:hover:text-texto'
         }`
       }
     >

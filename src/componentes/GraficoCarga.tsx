@@ -24,18 +24,18 @@ export default function GraficoCarga({
       <div className={`flex items-end gap-1.5 ${altura}`}>
         {ultimos.map((p) => (
           <div key={p.dia} className="flex flex-1 flex-col items-center gap-1">
-            <span className="text-[9px] tabular-nums text-slate-400">{p.carga}</span>
+            <span className="text-[9px] tabular-nums text-suave">{p.carga}</span>
             <div
-              className="w-full rounded-t bg-blue-500"
+              className="w-full rounded-t bg-acento"
               style={{ height: `${Math.max(6, (p.carga / maior) * 100)}%` }}
               title={`${p.dia}: ${p.carga}kg${p.reps ? ` × ${p.reps}` : ''}`}
             />
           </div>
         ))}
       </div>
-      <p className="mt-2 text-sm text-slate-400">
-        {delta > 0 && <span className="text-emerald-400">+{arredonda(delta)}kg</span>}
-        {delta < 0 && <span className="text-amber-400">{arredonda(delta)}kg</span>}
+      <p className="mt-2 text-sm text-suave">
+        {delta > 0 && <span className="text-feito">+{arredonda(delta)}kg</span>}
+        {delta < 0 && <span className="text-alerta">{arredonda(delta)}kg</span>}
         {delta === 0 && <span>mesma carga</span>}
         {ultimos.length > 1 && (
           <span className="ml-1">desde {dataCurta(primeiro.dia)}</span>

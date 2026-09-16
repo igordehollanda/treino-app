@@ -48,15 +48,15 @@ export default function Login() {
   return (
     <div className="flex min-h-dvh flex-col items-center justify-center gap-7 p-8">
       <div className="text-center">
-        <h1 className="text-3xl font-bold tracking-tight">Treino</h1>
-        <p className="mt-2 text-sm text-slate-400">Seus treinos e suas cargas.</p>
+        <h1 className="text-4xl font-extrabold tracking-tight">Treino</h1>
+        <p className="mt-2 text-sm text-suave">Seus treinos e suas cargas.</p>
       </div>
 
       {estado === 'enviado' ? (
         <div className="max-w-xs text-center">
-          <p className="font-medium text-emerald-400">Link enviado.</p>
-          <p className="mt-2 text-sm text-slate-400">
-            Abra o e-mail <span className="text-slate-200">{email}</span> no celular e toque
+          <p className="font-medium text-feito">Link enviado.</p>
+          <p className="mt-2 text-sm text-suave">
+            Abra o e-mail <span className="text-texto">{email}</span> no celular e toque
             no link.
           </p>
           <button
@@ -64,7 +64,7 @@ export default function Login() {
               setEstado('parado')
               setModo('senha')
             }}
-            className="mt-4 text-sm text-slate-500 underline"
+            className="mt-4 text-sm text-fraco underline"
           >
             entrar com senha
           </button>
@@ -78,7 +78,7 @@ export default function Login() {
             placeholder="seu@email.com"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            className="rounded-xl border border-borda bg-cartao px-4 py-3.5 text-base outline-none focus:border-blue-500"
+            className="rounded-xl border border-borda bg-superficie px-4 py-3.5 text-base outline-none focus:border-acento"
           />
 
           {modo === 'senha' && (
@@ -89,14 +89,14 @@ export default function Login() {
               placeholder="sua senha"
               value={senha}
               onChange={(e) => setSenha(e.target.value)}
-              className="rounded-xl border border-borda bg-cartao px-4 py-3.5 text-base outline-none focus:border-blue-500"
+              className="rounded-xl border border-borda bg-superficie px-4 py-3.5 text-base outline-none focus:border-acento"
             />
           )}
 
           <button
             type="submit"
             disabled={estado === 'enviando'}
-            className="rounded-xl bg-blue-600 py-3.5 text-base font-semibold active:bg-blue-700 disabled:opacity-50"
+            className="rounded-xl bg-acento py-3.5 text-base font-semibold active:bg-acento-forte disabled:opacity-50"
           >
             {estado === 'enviando'
               ? 'Aguarde…'
@@ -106,7 +106,7 @@ export default function Login() {
           </button>
 
           {erro && (
-            <p className="rounded-xl border border-rose-500/30 bg-rose-500/10 px-3 py-2.5 text-sm text-rose-200">
+            <p className="rounded-xl border border-erro/30 bg-erro/10 px-3 py-2.5 text-sm text-erro">
               {erro}
             </p>
           )}
@@ -117,7 +117,7 @@ export default function Login() {
               setModo(modo === 'senha' ? 'link' : 'senha')
               setErro(null)
             }}
-            className="mt-1 text-center text-sm text-slate-500 underline"
+            className="mt-1 text-center text-sm text-fraco underline"
           >
             {modo === 'senha' ? 'prefiro receber um link por e-mail' : 'entrar com senha'}
           </button>

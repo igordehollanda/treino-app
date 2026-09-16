@@ -6,6 +6,7 @@ import {
   semanaEmCache, treinosEmCache,
 } from '../lib/db'
 import { repsDoDia } from '../lib/periodizacao'
+import { linkDeExecucao } from '../lib/execucao'
 import type { Perfil, SemanaCiclo, TreinoCompleto } from '../lib/tipos'
 
 export default function Treinos() {
@@ -33,11 +34,11 @@ export default function Treinos() {
   return (
     <div className="mx-auto max-w-lg p-5 md:max-w-3xl">
       <div className="mb-5 flex items-center justify-between">
-        <h1 className="text-2xl font-bold">Treinos</h1>
+        <h1 className="text-[26px] font-extrabold">Treinos</h1>
         {ehPersonal && (
           <button
             onClick={() => void novo()}
-            className="rounded-xl bg-blue-600 px-4 py-2 text-sm font-semibold active:bg-blue-700"
+            className="rounded-xl bg-acento px-4 py-2 text-sm font-semibold active:bg-acento-forte"
           >
             + Novo
           </button>
@@ -45,7 +46,7 @@ export default function Treinos() {
       </div>
 
       {treinos.length === 0 ? (
-        <p className="rounded-2xl border border-borda bg-cartao p-6 text-center text-sm text-slate-400">
+        <p className="rounded-2xl border border-borda bg-superficie p-6 text-center text-sm text-suave">
           {ehPersonal ? 'Monte o primeiro treino.' : 'O personal ainda não montou nada.'}
         </p>
       ) : (
@@ -78,20 +79,23 @@ function Cartao({
   // Aberto por padrao: esta tela existe para consultar o treino. Fechada,
   // ela so mostrava um titulo e um numero que nao era de ninguem.
   const [aberto, setAberto] = useState(true)
+  // Voces treinam juntos: ver o que o outro faz neste mesmo treino e
+  // util na hora de dividir aparelho, nao e bisbilhotice.
+  const [vendo, setVendo] = useState(meuId)
   const nomeDe = (id: string) => perfis.find((p) => p.id === id)?.nome ?? '?'
 
-  // O aluno ve o treino dele. O personal ve os dois lados, que e o ponto
-  // de manter um treino so com variacoes.
+  const parceiros = treino.alunos.filter((a) => a !== meuId)
+  const alvo = editavel ? meuId : vendo
+
+  // O aluno ve o treino de quem escolheu. O personal ve os dois lados,
+  // que e o ponto de manter um treino so com variacoes.
   const meus = editavel
     ? treino.itens
-    : treino.itens.filter((i) => i.perfil_id === null || i.perfil_id === meuId)
-  const doOutro = editavel
-    ? []
-    : treino.itens.filter((i) => i.perfil_id !== null && i.perfil_id !== meuId)
+    : treino.itens.filter((i) => i.perfil_id === null || i.perfil_id === alvo)
   const series = meus.reduce((n, i) => n + i.series, 0)
 
   return (
-    <div className="overflow-hidden rounded-2xl border border-borda bg-cartao">
+    <div className="overflow-hidden rounded-2xl border border-borda bg-superficie">
       <button
         onClick={() => setAberto((a) => !a)}
         className="flex w-full items-center gap-3 p-4 text-left"
@@ -99,20 +103,37 @@ function Cartao({
         <div className="min-w-0 flex-1">
           <h2 className="truncate font-semibold">
             {treino.nome}
-            {!treino.ativo && <span className="ml-2 text-xs text-slate-500">(inativo)</span>}
+            {!treino.ativo && <span className="ml-2 text-xs text-fraco">(inativo)</span>}
           </h2>
-          <p className="text-sm text-slate-400">
-            {meus.length} exercícios · {series} séries
+          <p className="text-sm text-suave">
+            <span className="font-bold text-texto">{meus.length}</span> exercícios ·{' '}
+            <span className="font-bold text-texto">{series}</span> séries
             {editavel && ` · ${treino.alunos.map(nomeDe).join(' e ') || 'sem alunos'}`}
           </p>
         </div>
-        <span className="text-lg text-slate-500">{aberto ? '−' : '+'}</span>
+        <span className="text-lg text-fraco">{aberto ? '−' : '+'}</span>
       </button>
 
       {aberto && (
         <div className="border-t border-borda px-4 pb-4 pt-3">
+          {!editavel && parceiros.length > 0 && (
+            <div className="mb-3 flex gap-1 rounded-xl border border-borda p-1">
+              {[meuId, ...parceiros].map((id) => (
+                <button
+                  key={id}
+                  onClick={() => setVendo(id)}
+                  className={`flex-1 rounded-lg py-2 text-xs font-semibold ${
+                    alvo === id ? 'bg-acento text-white' : 'text-suave'
+                  }`}
+                >
+                  {id === meuId ? 'meu treino' : nomeDe(id)}
+                </button>
+              ))}
+            </div>
+          )}
+
           {treino.observacoes && (
-            <p className="mb-3 rounded-lg bg-slate-800/60 px-3 py-2 text-sm text-slate-300">
+            <p className="mb-3 rounded-lg bg-elevado/60 px-3 py-2 text-sm text-texto">
               {treino.observacoes}
             </p>
           )}
@@ -124,42 +145,49 @@ function Cartao({
                 className="flex items-baseline justify-between gap-3 border-b border-borda/50 py-2 text-sm last:border-0"
               >
                 <span className="flex min-w-0 items-baseline gap-2">
-                  <span className="w-4 shrink-0 text-xs text-slate-600">{n + 1}</span>
+                  <span className="w-4 shrink-0 text-xs text-fraco/70">{n + 1}</span>
                   <span className="min-w-0">
-                    <span className="block truncate">{i.exercicios?.nome}</span>
+                    <a
+                      href={linkDeExecucao(
+                        i.exercicios?.nome ?? '',
+                        i.exercicios?.video_url ?? null,
+                      )}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="block truncate underline decoration-borda-forte underline-offset-4"
+                    >
+                      {i.exercicios?.nome}
+                    </a>
                     {i.observacao && (
-                      <span className="text-xs text-amber-400/80">{i.observacao}</span>
+                      <span className="text-xs text-alerta/80">{i.observacao}</span>
                     )}
                   </span>
                   {i.grupo != null && (
-                    <span className="shrink-0 rounded-full bg-violet-500/15 px-1.5 py-0.5 text-[10px] text-violet-300">
+                    <span className="shrink-0 rounded-full bg-biset/15 px-1.5 py-0.5 text-[10px] text-biset">
                       bi-set
                     </span>
                   )}
                   {editavel && i.perfil_id && (
-                    <span className="shrink-0 rounded-full bg-blue-500/15 px-2 py-0.5 text-[10px] text-blue-300">
+                    <span className="shrink-0 rounded-full bg-acento/15 px-2 py-0.5 text-[10px] text-acento">
                       só {nomeDe(i.perfil_id)}
                     </span>
                   )}
                 </span>
-                <span className="shrink-0 tabular-nums text-slate-400">
+                <span className="valor shrink-0 text-sm text-suave">
                   {i.series} × {repsDoDia(i, semana)}
                 </span>
               </li>
             ))}
           </ul>
 
-          {doOutro.length > 0 && (
-            <p className="mt-3 text-xs text-slate-600">
-              {nomeDe(doOutro[0].perfil_id!)} faz {doOutro.length}{' '}
-              {doOutro.length === 1 ? 'exercício diferente' : 'exercícios diferentes'} neste treino.
-            </p>
-          )}
+          <p className="mt-3 text-xs text-fraco/70">
+            Toque no nome do exercício para ver como executar.
+          </p>
 
           {editavel && (
             <Link
               to={`/treinos/${treino.id}`}
-              className="mt-4 block rounded-xl bg-slate-700 py-2.5 text-center text-sm font-medium"
+              className="mt-4 block rounded-xl bg-borda py-2.5 text-center text-sm font-medium"
             >
               Editar
             </Link>

@@ -69,12 +69,12 @@ export default function Hoje() {
     <div className="mx-auto max-w-lg p-5 md:max-w-3xl">
       <header className="mb-6 flex items-start justify-between">
         <div>
-          <p className="text-sm text-slate-400">{saudacao()},</p>
-          <h1 className="text-2xl font-bold">{perfil?.nome}</h1>
+          <p className="text-sm text-suave">{saudacao()},</p>
+          <h1 className="text-[26px] font-extrabold leading-tight">{perfil?.nome}</h1>
         </div>
         <button
           onClick={() => navegar('/conta')}
-          className="mt-1 text-xs text-slate-500 underline"
+          className="mt-1 text-xs text-fraco underline"
         >
           conta
         </button>
@@ -88,16 +88,16 @@ export default function Hoje() {
       {aberta && (
         <button
           onClick={() => navegar(`/executar/${aberta.id}`)}
-          className="mb-6 w-full rounded-2xl border border-amber-500/40 bg-amber-500/10 p-4 text-left"
+          className="mb-6 w-full rounded-2xl border border-alerta/40 bg-alerta/10 p-4 text-left"
         >
-          <p className="text-xs font-medium text-amber-400">TREINO EM ANDAMENTO</p>
-          <p className="mt-1 text-lg font-semibold">{aberta.treino_nome}</p>
-          <p className="text-sm text-slate-400">Toque para continuar de onde parou</p>
+          <p className="rotulo text-alerta">Treino em andamento</p>
+          <p className="mt-1 text-lg font-bold">{aberta.treino_nome}</p>
+          <p className="text-sm text-suave">Toque para continuar de onde parou</p>
         </button>
       )}
 
       {meusTreinos.length === 0 ? (
-        <p className="rounded-2xl border border-borda bg-cartao p-6 text-center text-sm text-slate-400">
+        <p className="rounded-2xl border border-borda bg-superficie p-6 text-center text-sm text-suave">
           Nenhum treino atribuído ainda.
           {ehPersonal ? ' Monte o primeiro na aba Treinos.' : ' Fale com o personal.'}
         </p>
@@ -153,20 +153,20 @@ function CartaoPrincipal({
 }) {
   const c = custo(treino, perfilId)
   return (
-    <div className="mb-3 rounded-2xl border border-blue-500/60 bg-cartao p-4">
-      <p className="text-xs font-medium uppercase tracking-wide text-blue-400">
-        Próximo treino
-      </p>
-      <h2 className="mt-1 text-xl font-bold leading-tight">{treino.nome}</h2>
-      <p className="mt-1 text-sm text-slate-400">
-        {c.exercicios} exercícios · {c.series} séries · ~{c.minutos} min
+    <div className="mb-3 rounded-2xl border border-acento/60 bg-superficie p-4">
+      <p className="rotulo text-acento">Próximo treino</p>
+      <h2 className="mt-1.5 text-xl font-extrabold leading-tight">{treino.nome}</h2>
+      <p className="mt-1.5 text-sm text-suave">
+        <span className="font-bold text-texto">{c.exercicios}</span> exercícios ·{' '}
+        <span className="font-bold text-texto">{c.series}</span> séries ·{' '}
+        <span className="font-bold text-texto">~{c.minutos}</span> min
       </p>
       {ultima && (
-        <p className="text-sm text-slate-500">última vez {diasAtras(ultima.iniciada_em)}</p>
+        <p className="text-sm text-fraco">última vez {diasAtras(ultima.iniciada_em)}</p>
       )}
       <button
         onClick={aoComecar}
-        className="mt-3 w-full rounded-xl bg-blue-600 py-4 text-base font-semibold active:bg-blue-700"
+        className="mt-3 w-full rounded-xl bg-acento py-4 text-base font-semibold active:bg-acento-forte"
       >
         Iniciar
       </button>
@@ -187,16 +187,16 @@ function LinhaTreino({
   return (
     <button
       onClick={aoComecar}
-      className="flex w-full items-center gap-3 rounded-xl border border-borda bg-cartao px-4 py-3 text-left active:bg-slate-800"
+      className="flex w-full items-center gap-3 rounded-xl border border-borda bg-superficie px-4 py-3 text-left active:bg-elevado"
     >
       <span className="min-w-0 flex-1">
         <span className="block truncate font-medium">{treino.nome}</span>
-        <span className="text-xs text-slate-500">
+        <span className="text-xs text-fraco">
           {c.exercicios} ex · {c.series} séries · ~{c.minutos} min
           {ultima && ` · ${diasAtras(ultima.iniciada_em)}`}
         </span>
       </span>
-      <span className="shrink-0 text-lg text-slate-600">›</span>
+      <span className="shrink-0 text-lg text-fraco/70">›</span>
     </button>
   )
 }
@@ -208,19 +208,19 @@ function LinhaTreino({
  */
 function FaixaDoCiclo({ semana }: { semana: SemanaCiclo }) {
   return (
-    <div className="mb-3 rounded-2xl border border-blue-500/30 bg-blue-500/10 p-4">
+    <div className="mb-3 rounded-2xl border border-acento/30 bg-acento/10 p-4">
       <div className="flex items-baseline justify-between gap-3">
-        <span className="text-xs font-medium uppercase tracking-wide text-blue-300">
+        <span className="rotulo text-acento">
           Semana {semana.semana} de {semana.total}
         </span>
-        <span className="text-lg font-bold tabular-nums text-blue-100">
-          {semana.reps} <span className="text-sm font-normal text-blue-300">reps</span>
+        <span className="valor text-2xl text-texto">
+          {semana.reps} <span className="text-xs font-semibold text-acento">reps</span>
         </span>
       </div>
       {semana.observacao && (
-        <p className="mt-1.5 text-sm text-blue-200/80">{semana.observacao}</p>
+        <p className="mt-1.5 text-sm text-suave">{semana.observacao}</p>
       )}
-      <p className="mt-1 text-xs text-blue-300/60">
+      <p className="mt-1 text-xs text-fraco">
         {semana.diasParaProxima === 1
           ? 'muda amanhã'
           : `muda em ${semana.diasParaProxima} dias`}
@@ -241,10 +241,10 @@ function FaixaDaSemana({ sessoes }: { sessoes: Sessao[] }) {
   const total = dias.filter((d) => treinados.has(chaveDia(d))).length
 
   return (
-    <div className="mb-6 rounded-2xl border border-borda bg-cartao p-4">
+    <div className="mb-6 rounded-2xl border border-borda bg-superficie p-4">
       <div className="mb-3 flex items-baseline justify-between">
-        <span className="text-sm text-slate-400">Últimos 7 dias</span>
-        <span className="text-sm font-semibold">
+        <span className="rotulo">Últimos 7 dias</span>
+        <span className="text-sm font-bold">
           {total} treino{total === 1 ? '' : 's'}
         </span>
       </div>
@@ -253,14 +253,16 @@ function FaixaDaSemana({ sessoes }: { sessoes: Sessao[] }) {
           const fez = treinados.has(chaveDia(d))
           return (
             <div key={d.toISOString()} className="flex flex-col items-center gap-1.5">
-              <span className="text-[10px] uppercase text-slate-500">
+              <span className="text-[10px] font-semibold uppercase text-fraco">
                 {['dom', 'seg', 'ter', 'qua', 'qui', 'sex', 'sáb'][d.getDay()]}
               </span>
               <div
-                className={`h-8 w-8 rounded-full ${
-                  fez ? 'bg-emerald-500' : 'border border-borda bg-transparent'
+                className={`flex h-7 w-7 items-center justify-center rounded-lg text-[11px] font-bold ${
+                  fez ? 'bg-feito text-fundo' : 'border border-borda text-fraco/70'
                 }`}
-              />
+              >
+                {d.getDate()}
+              </div>
             </div>
           )
         })}
