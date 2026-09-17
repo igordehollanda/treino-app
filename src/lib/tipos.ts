@@ -101,6 +101,12 @@ export type AtividadeRegistro = {
   duracao_min: number | null
 }
 
+export type Falta = {
+  perfil_id: string
+  dia: string
+  motivo: string | null
+}
+
 export type PontoProgressao = {
   dia: string
   carga: number

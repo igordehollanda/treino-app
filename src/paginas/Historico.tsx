@@ -1,12 +1,12 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useAuth } from '../lib/auth'
 import {
-  buscarAtividades, buscarExercicios, buscarPerfis, buscarProgressao,
+  buscarAtividades, buscarExercicios, buscarFaltas, buscarPerfis, buscarProgressao,
   buscarRegistrosDeAtividade, buscarSessoes, perfisEmCache,
 } from '../lib/db'
 import GraficoCarga from '../componentes/GraficoCarga'
 import type {
-  Atividade, AtividadeRegistro, Exercicio, Perfil, PontoProgressao, Sessao,
+  Atividade, AtividadeRegistro, Exercicio, Falta, Perfil, PontoProgressao, Sessao,
 } from '../lib/tipos'
 
 export default function Historico() {
@@ -16,6 +16,7 @@ export default function Historico() {
   const [sessoes, setSessoes] = useState<Sessao[]>([])
   const [atividades, setAtividades] = useState<Atividade[]>([])
   const [extras, setExtras] = useState<AtividadeRegistro[]>([])
+  const [faltas, setFaltas] = useState<Falta[]>([])
   const [exercicios, setExercicios] = useState<Exercicio[]>([])
   const [exercicioId, setExercicioId] = useState('')
   const [progressao, setProgressao] = useState<PontoProgressao[]>([])
@@ -39,6 +40,9 @@ export default function Historico() {
     void buscarAtividades(vendo).then(setAtividades).catch(console.error)
     void buscarRegistrosDeAtividade(vendo, new Date(Date.now() - 400 * 864e5))
       .then(setExtras)
+      .catch(console.error)
+    void buscarFaltas(vendo, new Date(Date.now() - 400 * 864e5))
+      .then(setFaltas)
       .catch(console.error)
   }, [vendo])
 
@@ -85,6 +89,7 @@ export default function Historico() {
           sessoes={sessoes}
           atividades={atividades}
           extras={extras}
+          faltas={faltas}
           aoMudarMes={(delta) =>
             setMes((m) => new Date(m.getFullYear(), m.getMonth() + delta, 1))
           }
@@ -138,12 +143,13 @@ function Numero({ rotulo, valor, sufixo }: { rotulo: string; valor: number; sufi
  * se enxerga constancia.
  */
 function Calendario({
-  mes, sessoes, atividades, extras, aoMudarMes,
+  mes, sessoes, atividades, extras, faltas, aoMudarMes,
 }: {
   mes: Date
   sessoes: Sessao[]
   atividades: Atividade[]
   extras: AtividadeRegistro[]
+  faltas: Falta[]
   aoMudarMes: (delta: number) => void
 }) {
   const ano = mes.getFullYear()
@@ -174,6 +180,12 @@ function Calendario({
   }
   const totalExtras = [...extrasDoDia.values()].reduce((n, l) => n + l.length, 0)
 
+  const faltasDoMes = new Map<number, string | null>()
+  for (const f of faltas) {
+    const [a, mm, dd] = f.dia.split('-').map(Number)
+    if (a === ano && mm === m + 1) faltasDoMes.set(dd, f.motivo)
+  }
+
   const hoje = new Date()
   const ehMesAtual = hoje.getFullYear() === ano && hoje.getMonth() === m
   const futuro = new Date(ano, m, 1) > hoje
@@ -193,6 +205,7 @@ function Calendario({
           <p className="rotulo mt-0.5">
             {doDia.size} treino{doDia.size === 1 ? '' : 's'}
             {totalExtras > 0 && ` · ${totalExtras} extra${totalExtras === 1 ? '' : 's'}`}
+            {faltasDoMes.size > 0 && ` · ${faltasDoMes.size} falta${faltasDoMes.size === 1 ? '' : 's'}`}
           </p>
         </div>
         <button
@@ -218,27 +231,33 @@ function Calendario({
         {Array.from({ length: diasNoMes }, (_, i) => i + 1).map((dia) => {
           const letra = doDia.get(dia)
           const marcas = extrasDoDia.get(dia)
+          const falta = !letra && faltasDoMes.has(dia)
+          const motivo = faltasDoMes.get(dia)
           const ehHoje = ehMesAtual && hoje.getDate() === dia
           return (
             <div
               key={dia}
+              title={falta ? `Falta${motivo ? `: ${motivo}` : ''}` : undefined}
               className={`relative flex aspect-square flex-col items-center justify-center rounded-lg ${
                 letra
                   ? 'bg-feito text-fundo'
-                  : marcas
-                    ? 'border border-acento/40 bg-elevado'
-                    : ehHoje
-                      ? 'border-2 border-acento'
-                      : 'bg-elevado/40'
+                  : falta
+                    ? 'border border-dashed border-alerta/60 bg-alerta/5'
+                    : marcas
+                      ? 'border border-acento/40 bg-elevado'
+                      : ehHoje
+                        ? 'border-2 border-acento'
+                        : 'bg-elevado/40'
               }`}
             >
               <span
                 className={`text-[10px] leading-none ${
-                  letra ? 'font-semibold opacity-70' : 'text-fraco'
+                  letra ? 'font-semibold opacity-70' : falta ? 'text-alerta/70' : 'text-fraco'
                 }`}
               >
                 {dia}
               </span>
+              {falta && <span className="text-sm font-bold leading-tight text-alerta/80">×</span>}
               {letra && <span className="text-sm font-extrabold leading-tight">{letra}</span>}
               {marcas && !letra && (
                 <span className="text-sm leading-tight">{marcas.join('')}</span>

@@ -1,7 +1,7 @@
 import { supabase } from './supabase'
 import { enfileirar } from './fila'
 import type {
-  Atividade, AtividadeRegistro, Exercicio, Perfil, Periodizacao, PontoProgressao,
+  Atividade, AtividadeRegistro, Exercicio, Falta, Perfil, Periodizacao, PontoProgressao,
   SemanaCiclo, SerieRegistro, Sessao, TreinoCompleto, UltimaCarga,
 } from './tipos'
 import { semanaDoCiclo } from './periodizacao'
@@ -263,6 +263,35 @@ export async function salvarAtividade(a: {
 
 export async function apagarAtividade(id: string) {
   const { error } = await supabase.from('atividades').delete().eq('id', id)
+  if (error) throw error
+}
+
+// --- faltas -----------------------------------------------------------
+// Dia em branco e ambiguo: pode ser falta ou esquecimento de registrar.
+
+export async function buscarFaltas(perfilId: string, desde: Date): Promise<Falta[]> {
+  const { data, error } = await supabase
+    .from('faltas')
+    .select('perfil_id, dia, motivo')
+    .eq('perfil_id', perfilId)
+    .gte('dia', desde.toISOString().slice(0, 10))
+  if (error) throw error
+  return data as Falta[]
+}
+
+export async function marcarFalta(perfilId: string, dia: string, motivo: string | null) {
+  const { error } = await supabase
+    .from('faltas')
+    .upsert({ perfil_id: perfilId, dia, motivo }, { onConflict: 'perfil_id,dia' })
+  if (error) throw error
+}
+
+export async function desmarcarFalta(perfilId: string, dia: string) {
+  const { error } = await supabase
+    .from('faltas')
+    .delete()
+    .eq('perfil_id', perfilId)
+    .eq('dia', dia)
   if (error) throw error
 }
 

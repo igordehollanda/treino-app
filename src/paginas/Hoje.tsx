@@ -3,12 +3,13 @@ import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../lib/auth'
 import { supabase } from '../lib/supabase'
 import {
-  atividadesEmCache, buscarAtividades, buscarPlano, buscarRegistrosDeAtividade,
-  buscarSemanaAtual, buscarSessaoAberta, buscarSessoes, buscarTreinos, iniciarSessao,
-  marcarAtividade, planoEmCache, semanaEmCache, treinosEmCache,
+  atividadesEmCache, buscarAtividades, buscarFaltas, buscarPlano,
+  buscarRegistrosDeAtividade, buscarSemanaAtual, buscarSessaoAberta, buscarSessoes,
+  buscarTreinos, desmarcarFalta, iniciarSessao, marcarAtividade, marcarFalta,
+  planoEmCache, semanaEmCache, treinosEmCache,
 } from '../lib/db'
 import { chaveDia, inicioDaSemana } from '../lib/datas'
-import type { Atividade, AtividadeRegistro } from '../lib/tipos'
+import type { Atividade, AtividadeRegistro, Falta } from '../lib/tipos'
 import type { SemanaCiclo, Sessao, TreinoCompleto } from '../lib/tipos'
 
 export default function Hoje() {
@@ -25,6 +26,7 @@ export default function Hoje() {
     perfil ? atividadesEmCache(perfil.id) : [],
   )
   const [registros, setRegistros] = useState<AtividadeRegistro[]>([])
+  const [faltas, setFaltas] = useState<Falta[]>([])
 
   useEffect(() => {
     if (!perfil) return
@@ -37,6 +39,9 @@ export default function Hoje() {
     void buscarAtividades(perfil.id).then(setAtividades).catch(console.error)
     void buscarRegistrosDeAtividade(perfil.id, inicioDaSemana())
       .then(setRegistros)
+      .catch(console.error)
+    void buscarFaltas(perfil.id, new Date(Date.now() - 60 * 864e5))
+      .then(setFaltas)
       .catch(console.error)
 
     // O personal edita no celular dele; aqui a lista se atualiza sozinha.
@@ -82,6 +87,28 @@ export default function Hoje() {
   const principal = aberta ? null : (doPlano ?? (temPlano ? null : sugerido))
   const resto = meusTreinos.filter((t) => t.id !== principal?.id)
 
+  const hojeChave = chaveDia(new Date())
+  const faltouHoje = faltas.some((f) => f.dia === hojeChave)
+
+  async function alternarFalta(motivo: string | null = null) {
+    if (!perfil) return
+    if (faltouHoje) {
+      setFaltas((fs) => fs.filter((f) => f.dia !== hojeChave))
+      await desmarcarFalta(perfil.id, hojeChave).catch(console.error)
+    } else {
+      setFaltas((fs) => [...fs, { perfil_id: perfil.id, dia: hojeChave, motivo }])
+      await marcarFalta(perfil.id, hojeChave, motivo).catch(console.error)
+    }
+  }
+
+  async function anotarMotivo(motivo: string) {
+    if (!perfil) return
+    setFaltas((fs) =>
+      fs.map((f) => (f.dia === hojeChave ? { ...f, motivo: motivo || null } : f)),
+    )
+    await marcarFalta(perfil.id, hojeChave, motivo || null).catch(console.error)
+  }
+
   /** Marcar e desmarcar e otimista: o toque responde antes da rede. */
   async function alternarAtividade(a: Atividade) {
     if (!perfil) return
@@ -126,7 +153,7 @@ export default function Hoje() {
 
       <div className="md:grid md:grid-cols-2 md:items-start md:gap-4">
         {semana && <FaixaDoCiclo semana={semana} />}
-        <Semana plano={plano} treinos={meusTreinos} sessoes={sessoes} />
+        <Semana plano={plano} treinos={meusTreinos} sessoes={sessoes} faltas={faltas} />
       </div>
 
       {aberta && (
@@ -156,7 +183,16 @@ export default function Hoje() {
             </div>
           )}
 
-          {principal && (
+          {faltouHoje && !aberta && (
+            <CartaoFalta
+              dia={diaPorExtenso(new Date())}
+              motivo={faltas.find((f) => f.dia === hojeChave)?.motivo ?? ''}
+              aoAnotar={(m) => void anotarMotivo(m)}
+              aoDesfazer={() => void alternarFalta()}
+            />
+          )}
+
+          {principal && !faltouHoje && (
             <CartaoPrincipal
               treino={principal}
               perfilId={perfil?.id ?? ''}
@@ -164,6 +200,15 @@ export default function Hoje() {
               ultima={sessoes.find((s) => s.treino_id === principal.id)}
               aoComecar={() => void comecar(principal)}
             />
+          )}
+
+          {principal && !faltouHoje && !aberta && (
+            <button
+              onClick={() => void alternarFalta()}
+              className="mb-3 w-full rounded-xl border border-borda py-2.5 text-sm text-fraco active:bg-elevado"
+            >
+              não vou treinar hoje
+            </button>
           )}
           <div className="flex flex-col gap-2 md:grid md:grid-cols-2">
             {resto.map((t) => (
@@ -310,6 +355,42 @@ function CartaoPrincipal({
   )
 }
 
+/** Dia assumido como falta: o calendario para de mentir por omissao. */
+function CartaoFalta({
+  dia, motivo, aoAnotar, aoDesfazer,
+}: {
+  dia: string
+  motivo: string
+  aoAnotar: (m: string) => void
+  aoDesfazer: () => void
+}) {
+  const [texto, setTexto] = useState(motivo)
+
+  return (
+    <div className="mb-3 rounded-2xl border border-alerta/40 bg-alerta/10 p-4">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <p className="rotulo text-alerta">{dia} · não treinei</p>
+          <p className="mt-1 text-sm text-suave">
+            Fica registrado como falta, não como esquecimento.
+          </p>
+        </div>
+        <button onClick={aoDesfazer} className="shrink-0 text-xs text-suave underline">
+          desfazer
+        </button>
+      </div>
+
+      <input
+        value={texto}
+        onChange={(e) => setTexto(e.target.value)}
+        onBlur={() => aoAnotar(texto.trim())}
+        placeholder="motivo (opcional): viagem, doente, trabalho…"
+        className="mt-3 w-full rounded-lg border border-borda bg-superficie px-3 py-2 text-sm outline-none focus:border-acento"
+      />
+    </div>
+  )
+}
+
 /** Os outros treinos: a linha inteira e o botao. */
 function LinhaTreino({
   treino, perfilId, ultima, aoComecar,
@@ -373,11 +454,12 @@ function FaixaDoCiclo({ semana }: { semana: SemanaCiclo }) {
  * circulos sem dizer o que era para ter acontecido em cada um.
  */
 function Semana({
-  plano, treinos, sessoes,
+  plano, treinos, sessoes, faltas,
 }: {
   plano: Record<number, string>
   treinos: TreinoCompleto[]
   sessoes: Sessao[]
+  faltas: Falta[]
 }) {
   const hoje = new Date()
   hoje.setHours(0, 0, 0, 0)
@@ -385,6 +467,7 @@ function Semana({
   const segunda = inicioDaSemana(hoje)
 
   const feitos = new Set(sessoes.map((s) => s.iniciada_em.slice(0, 10)))
+  const faltou = new Set(faltas.map((f) => f.dia))
   const letraDe = (treinoId?: string) =>
     treinos.find((t) => t.id === treinoId)?.nome.trim()[0] ?? null
 
@@ -410,6 +493,7 @@ function Semana({
         {dias.map((d) => {
           const letra = letraDe(plano[d.getDay()])
           const fez = feitos.has(chaveDia(d))
+          const ausente = !fez && faltou.has(chaveDia(d))
           const ehHoje = chaveDia(d) === chaveDia(hoje)
           const passou = d < hoje
 
@@ -426,13 +510,15 @@ function Semana({
                 className={`flex h-9 w-full items-center justify-center rounded-lg text-sm font-extrabold ${
                   fez
                     ? 'bg-feito text-fundo'
-                    : ehHoje
-                      ? 'border-2 border-acento text-acento'
-                      : letra
-                        ? passou
-                          ? 'border border-borda text-fraco/70'
-                          : 'border border-borda-forte text-suave'
-                        : 'text-fraco/70'
+                    : ausente
+                      ? 'border border-dashed border-alerta/60 text-alerta/80'
+                      : ehHoje
+                        ? 'border-2 border-acento text-acento'
+                        : letra
+                          ? passou
+                            ? 'border border-borda text-fraco/70'
+                            : 'border border-borda-forte text-suave'
+                          : 'text-fraco/70'
                 }`}
               >
                 {letra ?? '–'}
