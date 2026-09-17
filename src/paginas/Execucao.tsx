@@ -4,8 +4,8 @@ import { useAuth } from '../lib/auth'
 import { supabase } from '../lib/supabase'
 import {
   apagarSerie, buscarExercicios, buscarProgressao, buscarSemanaAtual, buscarSeriesDaSessao,
-  buscarTreinos, buscarUltimasCargas, cargasEmCache, criarExercicio, finalizarSessao,
-  registrarSerie, semanaEmCache, sessaoLocal, treinosEmCache,
+  buscarTreinos, buscarUltimasCargas, cargasEmCache, criarExercicio, descartarSessao,
+  finalizarSessao, registrarSerie, semanaEmCache, sessaoLocal, treinosEmCache,
 } from '../lib/db'
 import { repsDoDia } from '../lib/periodizacao'
 import { linkDeExecucao } from '../lib/execucao'
@@ -235,6 +235,13 @@ export default function Execucao() {
     [marcadas, gravar, resolver],
   )
 
+  async function descartar() {
+    if (!sessao) return
+    if (!confirm('Descartar este treino? As séries já marcadas serão apagadas.')) return
+    await descartarSessao(sessao.id).catch(console.error)
+    navegar('/', { replace: true })
+  }
+
   async function terminar() {
     if (!sessao) return
     setFinalizando(true)
@@ -322,6 +329,13 @@ export default function Execucao() {
           className="mt-2 rounded-2xl bg-feito py-4 text-base font-semibold active:bg-feito/80 disabled:opacity-50"
         >
           {finalizando ? 'Salvando…' : 'Finalizar treino'}
+        </button>
+
+        <button
+          onClick={() => void descartar()}
+          className="pb-2 text-sm text-fraco underline"
+        >
+          descartar este treino
         </button>
       </div>
 

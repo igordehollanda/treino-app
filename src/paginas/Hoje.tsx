@@ -5,8 +5,8 @@ import { supabase } from '../lib/supabase'
 import {
   atividadesEmCache, buscarAtividades, buscarFaltas, buscarPlano,
   buscarRegistrosDeAtividade, buscarSemanaAtual, buscarSessaoAberta, buscarSessoes,
-  buscarTreinos, desmarcarFalta, iniciarSessao, marcarAtividade, marcarFalta,
-  planoEmCache, semanaEmCache, treinosEmCache,
+  buscarTreinos, descartarSessao, desmarcarFalta, iniciarSessao, marcarAtividade,
+  marcarFalta, planoEmCache, semanaEmCache, treinosEmCache,
 } from '../lib/db'
 import { chaveDia, inicioDaSemana } from '../lib/datas'
 import type { Atividade, AtividadeRegistro, Falta } from '../lib/tipos'
@@ -90,6 +90,20 @@ export default function Hoje() {
   const hojeChave = chaveDia(new Date())
   const faltouHoje = faltas.some((f) => f.dia === hojeChave)
 
+  /** Iniciou por engano: apaga a sessao e devolve o dia ao normal. */
+  async function descartar() {
+    if (!aberta) return
+    if (!confirm('Descartar este treino? As séries já marcadas nele serão apagadas.')) return
+    const id = aberta.id
+    setAberta(null)
+    try {
+      await descartarSessao(id)
+      if (perfil) await buscarSessoes(perfil.id, new Date(Date.now() - 30 * 864e5)).then(setSessoes)
+    } catch (e) {
+      console.error(e)
+    }
+  }
+
   async function alternarFalta(motivo: string | null = null) {
     if (!perfil) return
     if (faltouHoje) {
@@ -157,14 +171,24 @@ export default function Hoje() {
       </div>
 
       {aberta && (
-        <button
-          onClick={() => navegar(`/executar/${aberta.id}`)}
-          className="mb-6 w-full rounded-2xl border border-alerta/40 bg-alerta/10 p-4 text-left"
-        >
-          <p className="rotulo text-alerta">Treino em andamento</p>
-          <p className="mt-1 text-lg font-bold">{aberta.treino_nome}</p>
-          <p className="text-sm text-suave">Toque para continuar de onde parou</p>
-        </button>
+        <div className="mb-6 rounded-2xl border border-alerta/40 bg-alerta/10 p-4">
+          <div className="flex items-start justify-between gap-3">
+            <p className="rotulo text-alerta">Treino em andamento</p>
+            <button
+              onClick={() => void descartar()}
+              className="shrink-0 text-xs text-suave underline"
+            >
+              descartar
+            </button>
+          </div>
+          <button
+            onClick={() => navegar(`/executar/${aberta.id}`)}
+            className="mt-1 w-full text-left"
+          >
+            <p className="text-lg font-bold">{aberta.treino_nome}</p>
+            <p className="text-sm text-suave">Toque para continuar de onde parou</p>
+          </button>
+        </div>
       )}
 
       {meusTreinos.length === 0 ? (

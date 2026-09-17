@@ -432,6 +432,25 @@ export async function finalizarSessao(sessao: Sessao, observacao: string | null)
   return atualizada
 }
 
+/**
+ * Descarta uma sessao inteira: iniciou por engano, ou desistiu antes de
+ * comecar. Sem isto, uma sessao aberta trava a tela Hoje para sempre —
+ * nao da para iniciar outro treino nem registrar falta no dia.
+ */
+export async function descartarSessao(sessaoId: string) {
+  const todas = sessoesLocais()
+  delete todas[sessaoId]
+  try {
+    localStorage.setItem(CHAVE_SESSOES, JSON.stringify(todas))
+    localStorage.removeItem(`treino:trocas:${sessaoId}`)
+  } catch {
+    /* segue para o servidor de qualquer forma */
+  }
+  // As series saem junto, por cascade.
+  const { error } = await supabase.from('sessoes').delete().eq('id', sessaoId)
+  if (error) throw error
+}
+
 export async function registrarSerie(registro: Omit<SerieRegistro, 'id'>) {
   await enfileirar({
     tabela: 'series_registros',
