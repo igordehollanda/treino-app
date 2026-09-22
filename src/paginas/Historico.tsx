@@ -2,8 +2,9 @@ import { useEffect, useMemo, useState } from 'react'
 import { useAuth } from '../lib/auth'
 import {
   buscarAtividades, buscarExercicios, buscarFaltas, buscarPerfis, buscarProgressao,
-  buscarRegistrosDeAtividade, buscarSessoes, perfisEmCache,
+  buscarRegistrosDeAtividade, buscarSessoes, desmarcarFalta, marcarFalta, perfisEmCache,
 } from '../lib/db'
+import { chaveDia } from '../lib/datas'
 import GraficoCarga from '../componentes/GraficoCarga'
 import type {
   Atividade, AtividadeRegistro, Exercicio, Falta, Perfil, PontoProgressao, Sessao,
@@ -54,6 +55,33 @@ export default function Historico() {
     void buscarProgressao(vendo, exercicioId).then(setProgressao).catch(console.error)
   }, [vendo, exercicioId])
 
+  /**
+   * Marcar falta em dia passado.
+   *
+   * So no proprio calendario: a RLS nao deixa registrar falta de outra
+   * pessoa, e nao seria papel do personal fazer isso.
+   */
+  async function alternarFalta(dia: Date) {
+    if (!perfil || vendo !== perfil.id) return
+    const chave = chaveDia(dia)
+    const jaFaltou = faltas.some((f) => f.dia === chave)
+
+    setFaltas((fs) =>
+      jaFaltou
+        ? fs.filter((f) => f.dia !== chave)
+        : [...fs, { perfil_id: perfil.id, dia: chave, motivo: null }],
+    )
+    try {
+      if (jaFaltou) await desmarcarFalta(perfil.id, chave)
+      else await marcarFalta(perfil.id, chave, null)
+    } catch (e) {
+      console.error(e)
+      await buscarFaltas(perfil.id, new Date(Date.now() - 400 * 864e5))
+        .then(setFaltas)
+        .catch(console.error)
+    }
+  }
+
   const alunos = perfis.filter((p) => p.papel === 'aluno')
   const sequencia = useMemo(() => calculaSequencia(sessoes), [sessoes])
 
@@ -90,6 +118,8 @@ export default function Historico() {
           atividades={atividades}
           extras={extras}
           faltas={faltas}
+          editavel={vendo === perfil?.id}
+          aoAlternarFalta={(d) => void alternarFalta(d)}
           aoMudarMes={(delta) =>
             setMes((m) => new Date(m.getFullYear(), m.getMonth() + delta, 1))
           }
@@ -143,13 +173,15 @@ function Numero({ rotulo, valor, sufixo }: { rotulo: string; valor: number; sufi
  * se enxerga constancia.
  */
 function Calendario({
-  mes, sessoes, atividades, extras, faltas, aoMudarMes,
+  mes, sessoes, atividades, extras, faltas, editavel, aoAlternarFalta, aoMudarMes,
 }: {
   mes: Date
   sessoes: Sessao[]
   atividades: Atividade[]
   extras: AtividadeRegistro[]
   faltas: Falta[]
+  editavel: boolean
+  aoAlternarFalta: (d: Date) => void
   aoMudarMes: (delta: number) => void
 }) {
   const ano = mes.getFullYear()
@@ -234,10 +266,22 @@ function Calendario({
           const falta = !letra && faltasDoMes.has(dia)
           const motivo = faltasDoMes.get(dia)
           const ehHoje = ehMesAtual && hoje.getDate() === dia
+          const data = new Date(ano, m, dia)
+          // Dia treinado nao vira falta, e dia futuro ainda nao aconteceu.
+          const podeMarcar =
+            editavel && !letra && data <= new Date(hoje.getFullYear(), hoje.getMonth(), hoje.getDate())
+          const Celula = podeMarcar ? 'button' : 'div'
           return (
-            <div
+            <Celula
               key={dia}
-              title={falta ? `Falta${motivo ? `: ${motivo}` : ''}` : undefined}
+              onClick={podeMarcar ? () => aoAlternarFalta(data) : undefined}
+              title={
+                falta
+                  ? `Falta${motivo ? `: ${motivo}` : ''}`
+                  : podeMarcar
+                    ? 'Marcar como falta'
+                    : undefined
+              }
               className={`relative flex aspect-square flex-col items-center justify-center rounded-lg ${
                 letra
                   ? 'bg-feito text-fundo'
@@ -267,10 +311,16 @@ function Calendario({
                   {marcas.join('')}
                 </span>
               )}
-            </div>
+            </Celula>
           )
         })}
       </div>
+
+      {editavel && (
+        <p className="mt-3 text-xs text-fraco">
+          Toque num dia sem treino para marcar ou tirar uma falta.
+        </p>
+      )}
     </div>
   )
 }

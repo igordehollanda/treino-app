@@ -52,6 +52,9 @@ export default function Execucao() {
   const [trocando, setTrocando] = useState<TreinoExercicio | null>(null)
   const [catalogo, setCatalogo] = useState<Exercicio[]>([])
   const [finalizando, setFinalizando] = useState(false)
+  // Minuto basta durante o treino, entao o relogio anda de 20 em 20s em
+  // vez de a cada segundo: menos renderizacao a toa numa tela cheia.
+  const [agora, setAgora] = useState(() => Date.now())
   const refs = useRef<Record<string, HTMLElement | null>>({})
 
   // 1. Carrega a sessao e o que ja foi registrado nela.
@@ -91,6 +94,11 @@ export default function Execucao() {
       })
       .catch(console.error)
   }, [sessao])
+
+  useEffect(() => {
+    const t = setInterval(() => setAgora(Date.now()), 20_000)
+    return () => clearInterval(t)
+  }, [])
 
   // Contagem regressiva do descanso.
   useEffect(() => {
@@ -143,6 +151,10 @@ export default function Execucao() {
   const totalSeries = meusItens.reduce((n, i) => n + i.series, 0)
   const feitas = Object.values(marcadas).filter((m) => m.feita).length
 
+  const minutos = sessao
+    ? Math.max(0, Math.floor((agora - new Date(sessao.iniciada_em).getTime()) / 60000))
+    : 0
+
   const blocoConcluido = useCallback(
     (bloco: Bloco) =>
       bloco.itens.every((item) =>
@@ -152,6 +164,11 @@ export default function Execucao() {
       ),
     [marcadas, resolver],
   )
+
+  // "Exercício 3 de 7" e como se pensa durante o treino — series soltas
+  // nao dizem onde voce esta na sequencia.
+  const atual = blocos.findIndex((b) => !blocoConcluido(b))
+  const posicao = atual === -1 ? blocos.length : atual + 1
 
   /**
    * Leva o proximo bloco pendente para o topo. E o que evita procurar
@@ -262,12 +279,12 @@ export default function Execucao() {
           <div className="min-w-0">
             <h1 className="truncate text-lg font-extrabold">{treino.nome}</h1>
             <p className="text-xs text-suave">
-              <span className="font-bold text-texto">{feitas}</span> de {totalSeries} séries
-              {semana && (
-                <span className="text-texto">
-                  {' · '}semana {semana.semana} · {semana.reps} reps
-                </span>
-              )}
+              Exercício <span className="font-bold text-texto">{posicao}</span> de{' '}
+              {blocos.length}
+              {' · '}
+              <span className="font-bold text-texto">{feitas}</span>/{totalSeries} séries
+              {' · '}
+              <span className="font-bold text-texto">{minutos}</span> min
             </p>
           </div>
           <button onClick={() => navegar('/')} className="shrink-0 text-sm text-suave">
