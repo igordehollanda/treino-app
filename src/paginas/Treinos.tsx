@@ -168,7 +168,7 @@ function Cartao({
                     </span>
                   )}
                   {editavel && i.perfil_id && (
-                    <span className="shrink-0 rounded-full bg-acento/15 px-2 py-0.5 text-[10px] text-acento">
+                    <span className="shrink-0 rounded-full bg-acento/15 px-2 py-0.5 text-[10px] text-acento-texto">
                       só {nomeDe(i.perfil_id)}
                     </span>
                   )}

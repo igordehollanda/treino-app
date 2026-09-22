@@ -2,11 +2,13 @@ import { useEffect, useMemo, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { useAuth } from '../lib/auth'
 import {
-  apagarItem, apagarTreino, buscarExercicios, buscarPerfis, buscarTreinos,
-  criarExercicio, definirAlunos, salvarItem, salvarTreino,
+  apagarItem, apagarTreino, buscarExercicios, buscarPerfis, buscarSemanaAtual,
+  buscarTreinos, criarExercicio, definirAlunos, salvarItem, salvarTreino, semanaEmCache,
 } from '../lib/db'
 import SeletorExercicio from '../componentes/SeletorExercicio'
-import type { Exercicio, Perfil, TreinoCompleto, TreinoExercicio } from '../lib/tipos'
+import type {
+  Exercicio, Perfil, SemanaCiclo, TreinoCompleto, TreinoExercicio,
+} from '../lib/tipos'
 
 export default function EditorTreino() {
   const { treinoId } = useParams()
@@ -17,6 +19,7 @@ export default function EditorTreino() {
   const [perfis, setPerfis] = useState<Perfil[]>([])
   const [exercicios, setExercicios] = useState<Exercicio[]>([])
   const [adicionando, setAdicionando] = useState(false)
+  const [semana, setSemana] = useState<SemanaCiclo | null>(semanaEmCache())
 
   const alunos = useMemo(() => perfis.filter((p) => p.papel === 'aluno'), [perfis])
 
@@ -29,6 +32,7 @@ export default function EditorTreino() {
     void recarregar().catch(console.error)
     void buscarPerfis().then(setPerfis).catch(console.error)
     void buscarExercicios().then(setExercicios).catch(console.error)
+    void buscarSemanaAtual().then(setSemana).catch(console.error)
      
   }, [treinoId])
 
@@ -126,7 +130,7 @@ export default function EditorTreino() {
                 key={a.id}
                 onClick={() => void alternarAluno(a.id)}
                 className={`flex-1 rounded-xl border py-2.5 text-sm font-medium ${
-                  marcado ? 'border-acento bg-acento/15 text-acento' : 'border-borda text-suave'
+                  marcado ? 'border-acento bg-acento/15 text-acento-texto' : 'border-borda text-suave'
                 }`}
               >
                 {a.nome}
@@ -153,6 +157,7 @@ export default function EditorTreino() {
             item={item}
             anterior={treino.itens[i - 1] ?? null}
             alunos={alunos}
+            semana={semana}
             primeiro={i === 0}
             ultimo={i === treino.itens.length - 1}
             aoMover={(d) => void mover(item, d)}
@@ -204,11 +209,13 @@ export default function EditorTreino() {
 }
 
 function LinhaItem({
-  item, anterior, alunos, primeiro, ultimo, aoMover, aoAlternarBiset, aoSalvar, aoApagar,
+  item, anterior, alunos, semana, primeiro, ultimo, aoMover, aoAlternarBiset,
+  aoSalvar, aoApagar,
 }: {
   item: TreinoExercicio
   anterior: TreinoExercicio | null
   alunos: Perfil[]
+  semana: SemanaCiclo | null
   primeiro: boolean
   ultimo: boolean
   aoMover: (delta: number) => void
@@ -224,6 +231,10 @@ function LinhaItem({
   const [descanso, setDescanso] = useState(String(item.descanso_seg))
   const [observacao, setObservacao] = useState(item.observacao ?? '')
   const [perfilId, setPerfilId] = useState<string | null>(item.perfil_id)
+
+  // Sete exercicios abertos viram uma pagina de 5 mil pixels. O resumo
+  // responde "esta certo?"; a edicao so abre quando ha o que mudar.
+  const [aberto, setAberto] = useState(false)
 
   const salvar = (sobrescreve: Partial<{ perfil_id: string | null }> = {}) =>
     void aoSalvar({
@@ -248,14 +259,31 @@ function LinhaItem({
         </p>
       )}
       <div className="flex items-start justify-between gap-2">
-        <h3 className="min-w-0 truncate font-medium">{item.exercicios?.nome}</h3>
-        <div className="flex shrink-0 gap-1 text-fraco">
+        <button onClick={() => setAberto((a) => !a)} className="min-w-0 flex-1 text-left">
+          <h3 className="font-medium leading-tight">{item.exercicios?.nome}</h3>
+          <p className="mt-0.5 text-xs text-suave">
+            {series} × {reps.trim() || (semana?.reps ?? '—')}
+            {!reps.trim() && semana && (
+              <span className="text-fraco"> (semana {semana.semana})</span>
+            )}
+            {' · '}{descanso}s
+            {perfilId && (
+              <span className="ml-1.5 text-acento-texto">
+                só {primeiroNome(alunos.find((a) => a.id === perfilId)?.nome ?? '')}
+              </span>
+            )}
+            {observacao && <span className="ml-1.5 text-alerta/80">· {observacao}</span>}
+          </p>
+        </button>
+        <div className="flex shrink-0 items-center gap-1 text-fraco">
           <button onClick={() => aoMover(-1)} disabled={primeiro} className="px-2 disabled:opacity-25">↑</button>
           <button onClick={() => aoMover(1)} disabled={ultimo} className="px-2 disabled:opacity-25">↓</button>
           <button onClick={() => void aoApagar()} className="px-2 text-erro">×</button>
         </div>
       </div>
 
+      {!aberto ? null : (
+      <>
       <div className="mt-3 grid grid-cols-3 gap-2">
         <Mini rotulo="séries" valor={series} aoMudar={setSeries} aoSair={() => salvar()} />
         <Mini
@@ -264,7 +292,7 @@ function LinhaItem({
           aoMudar={setReps}
           aoSair={() => salvar()}
           texto
-          placeholder="periodização"
+          placeholder="semana"
         />
         <Mini rotulo="descanso (s)" valor={descanso} aoMudar={setDescanso} aoSair={() => salvar()} />
       </div>
@@ -285,7 +313,7 @@ function LinhaItem({
             <Opcao
               key={a.id}
               ativa={perfilId === a.id}
-              rotulo={`So ${a.nome}`}
+              rotulo={`Só ${primeiroNome(a.nome)}`}
               aoClicar={() => {
                 setPerfilId(a.id)
                 salvar({ perfil_id: a.id })
@@ -315,9 +343,14 @@ function LinhaItem({
           {item.grupo != null ? 'Separar do exercício acima' : 'Fazer em bi-set com o de cima'}
         </button>
       )}
+      </>
+      )}
     </div>
   )
 }
+
+/** "Camila Cabral" -> "Camila": nome inteiro quebra o botão em duas linhas. */
+const primeiroNome = (nome: string) => nome.split(' ')[0]
 
 function Mini({
   rotulo, valor, aoMudar, aoSair, texto, placeholder,
@@ -349,7 +382,7 @@ function Opcao({ ativa, rotulo, aoClicar }: { ativa: boolean; rotulo: string; ao
     <button
       onClick={aoClicar}
       className={`flex-1 rounded-lg border py-2 text-xs font-medium ${
-        ativa ? 'border-acento bg-acento/15 text-acento' : 'border-borda text-suave'
+        ativa ? 'border-acento bg-acento/15 text-acento-texto' : 'border-borda text-suave'
       }`}
     >
       {rotulo}

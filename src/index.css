@@ -21,10 +21,16 @@
 
   --color-texto: #e9eff5;
   --color-suave: #8e9caa;
-  --color-fraco: #5c6875;
+  /* Media em 4.5:1 ate na superficie mais clara. O valor anterior
+     (#5c6875) dava 2.7:1 sobre elevado — e e justamente a cor dos
+     textos de 10 a 12px, lidos de relance no meio do treino. */
+  --color-fraco: #808c99;
 
-  --color-acento: #2f6bff;
-  --color-acento-forte: #1b53df;
+  /* Fundo de botao. Como TEXTO usa-se acento-texto: #2f6bff em 12px
+     sobre superficie da 3.9:1, abaixo de AA. */
+  --color-acento: #2563eb;
+  --color-acento-texto: #4a86ff;
+  --color-acento-forte: #1b4fd0;
   --color-feito: #15c07a;
   --color-alerta: #f2a03d;
   --color-biset: #8b5cf6;

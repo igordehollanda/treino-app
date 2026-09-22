@@ -55,7 +55,7 @@ function Aba({ para, rotulo }: { para: string; rotulo: string }) {
       className={({ isActive }) =>
         `py-3.5 text-center text-sm font-medium transition-colors md:rounded-lg md:px-7 md:py-2 ${
           isActive
-            ? 'text-acento md:bg-acento md:text-white'
+            ? 'text-acento-texto md:bg-acento md:text-white'
             : 'text-suave md:hover:text-texto'
         }`
       }

@@ -68,7 +68,7 @@ export default function Historico() {
               key={a.id}
               onClick={() => setVendo(a.id)}
               className={`flex-1 rounded-xl border py-2.5 text-sm font-medium ${
-                vendo === a.id ? 'border-acento bg-acento/15 text-acento' : 'border-borda text-suave'
+                vendo === a.id ? 'border-acento bg-acento/15 text-acento-texto' : 'border-borda text-suave'
               }`}
             >
               {a.nome}

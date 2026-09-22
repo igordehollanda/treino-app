@@ -357,7 +357,7 @@ function CartaoPrincipal({
   const c = custo(treino, perfilId)
   return (
     <div className="mb-3 rounded-2xl border border-acento/60 bg-superficie p-4">
-      <p className="rotulo text-acento">
+      <p className="rotulo text-acento-texto">
         {hoje ? `${diaPorExtenso(new Date())} · treino de hoje` : 'Próximo treino'}
       </p>
       <h2 className="mt-1.5 text-xl font-extrabold leading-tight">{treino.nome}</h2>
@@ -451,11 +451,11 @@ function FaixaDoCiclo({ semana }: { semana: SemanaCiclo }) {
   return (
     <div className="mb-3 rounded-2xl border border-acento/30 bg-acento/10 p-4">
       <div className="flex items-baseline justify-between gap-3">
-        <span className="rotulo text-acento">
+        <span className="rotulo text-acento-texto">
           Semana {semana.semana} de {semana.total}
         </span>
         <span className="valor text-2xl text-texto">
-          {semana.reps} <span className="text-xs font-semibold text-acento">reps</span>
+          {semana.reps} <span className="text-xs font-semibold text-acento-texto">reps</span>
         </span>
       </div>
       {semana.observacao && (
@@ -525,7 +525,7 @@ function Semana({
             <div key={d.toISOString()} className="flex flex-1 flex-col items-center gap-1.5">
               <span
                 className={`text-[10px] font-semibold uppercase ${
-                  ehHoje ? 'text-acento' : 'text-fraco'
+                  ehHoje ? 'text-acento-texto' : 'text-fraco'
                 }`}
               >
                 {['seg', 'ter', 'qua', 'qui', 'sex', 'sáb', 'dom'][(d.getDay() + 6) % 7]}
@@ -537,7 +537,7 @@ function Semana({
                     : ausente
                       ? 'border border-dashed border-alerta/60 text-alerta/80'
                       : ehHoje
-                        ? 'border-2 border-acento text-acento'
+                        ? 'border-2 border-acento text-acento-texto'
                         : letra
                           ? passou
                             ? 'border border-borda text-fraco/70'

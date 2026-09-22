@@ -21,6 +21,7 @@ export default function Conta() {
   const [senha, setSenha] = useState('')
   const [repetida, setRepetida] = useState('')
   const [estado, setEstado] = useState<'parado' | 'salvando' | 'salva'>('parado')
+  const [abrindoSenha, setAbrindoSenha] = useState(false)
   const [erro, setErro] = useState<string | null>(null)
 
   async function salvar(e: React.FormEvent) {
@@ -58,9 +59,24 @@ export default function Conta() {
         {perfil?.papel === 'personal' ? 'Personal' : 'Aluno'}
       </p>
 
-      <form onSubmit={salvar} className="mt-6 flex flex-col gap-3">
-        <h2 className="text-sm font-medium text-texto">Definir uma senha</h2>
-        <p className="-mt-1 text-xs text-fraco">
+      <PlanoDaSemana perfilId={perfil?.id ?? ''} ehPersonal={perfil?.papel === 'personal'} />
+
+      <Extras perfilId={perfil?.id ?? ''} />
+
+      {/* Trocar senha e raro: fica recolhido para nao ocupar o topo da
+          tela com o que quase nunca se usa. */}
+      <section className="mt-8">
+        <button
+          onClick={() => setAbrindoSenha((a) => !a)}
+          className="flex w-full items-center justify-between py-1 text-left"
+        >
+          <span className="text-sm font-medium text-texto">Trocar a senha</span>
+          <span className="text-fraco">{abrindoSenha ? '−' : '+'}</span>
+        </button>
+
+        {abrindoSenha && (
+      <form onSubmit={salvar} className="mt-3 flex flex-col gap-3">
+        <p className="text-xs text-fraco">
           Com senha você entra mesmo quando o e-mail do link não chega.
         </p>
 
@@ -100,10 +116,8 @@ export default function Conta() {
           </p>
         )}
       </form>
-
-      <PlanoDaSemana perfilId={perfil?.id ?? ''} ehPersonal={perfil?.papel === 'personal'} />
-
-      <Extras perfilId={perfil?.id ?? ''} />
+        )}
+      </section>
 
       <button
         onClick={() => void sair()}
