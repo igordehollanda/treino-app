@@ -2,7 +2,8 @@ import { useEffect, useMemo, useState } from 'react'
 import { useAuth } from '../lib/auth'
 import {
   buscarAtividades, buscarExercicios, buscarFaltas, buscarPerfis, buscarProgressao,
-  buscarRegistrosDeAtividade, buscarSessoes, desmarcarFalta, marcarFalta, perfisEmCache,
+  buscarRegistrosDeAtividade, buscarSessoes, desmarcarFalta, marcarAtividade, marcarFalta,
+  perfisEmCache,
 } from '../lib/db'
 import { chaveDia } from '../lib/datas'
 import GraficoCarga from '../componentes/GraficoCarga'
@@ -21,6 +22,9 @@ export default function Historico() {
   const [exercicios, setExercicios] = useState<Exercicio[]>([])
   const [exercicioId, setExercicioId] = useState('')
   const [progressao, setProgressao] = useState<PontoProgressao[]>([])
+  // O dia aberto para edicao retroativa. Esqueceu de marcar o jiu-jitsu
+  // de ontem, ou a falta de quinta: e aqui que se conserta.
+  const [diaAberto, setDiaAberto] = useState<Date | null>(null)
   const [mes, setMes] = useState(() => {
     const d = new Date()
     return new Date(d.getFullYear(), d.getMonth(), 1)
@@ -82,6 +86,27 @@ export default function Historico() {
     }
   }
 
+  /** Marca ou desmarca uma atividade num dia qualquer, nao so hoje. */
+  async function alternarAtividade(atividadeId: string, dia: Date) {
+    if (!perfil || vendo !== perfil.id) return
+    const chave = chaveDia(dia)
+    const feito = extras.some((r) => r.atividade_id === atividadeId && r.dia === chave)
+
+    setExtras((rs) =>
+      feito
+        ? rs.filter((r) => !(r.atividade_id === atividadeId && r.dia === chave))
+        : [...rs, { atividade_id: atividadeId, perfil_id: perfil.id, dia: chave, duracao_min: null }],
+    )
+    try {
+      await marcarAtividade(atividadeId, perfil.id, chave, !feito)
+    } catch (e) {
+      console.error(e)
+      await buscarRegistrosDeAtividade(perfil.id, new Date(Date.now() - 400 * 864e5))
+        .then(setExtras)
+        .catch(console.error)
+    }
+  }
+
   const alunos = perfis.filter((p) => p.papel === 'aluno')
   const sequencia = useMemo(() => calculaSequencia(sessoes), [sessoes])
 
@@ -119,11 +144,24 @@ export default function Historico() {
           extras={extras}
           faltas={faltas}
           editavel={vendo === perfil?.id}
-          aoAlternarFalta={(d) => void alternarFalta(d)}
+          diaAberto={diaAberto}
+          aoAbrirDia={(d) => setDiaAberto((a) => (a && +a === +d ? null : d))}
           aoMudarMes={(delta) =>
             setMes((m) => new Date(m.getFullYear(), m.getMonth() + delta, 1))
           }
         />
+        {diaAberto && (
+          <PainelDoDia
+            dia={diaAberto}
+            atividades={atividades}
+            extras={extras}
+            treinou={sessoes.some((x) => x.iniciada_em.slice(0, 10) === chaveDia(diaAberto))}
+            faltou={faltas.some((f) => f.dia === chaveDia(diaAberto))}
+            aoAlternarAtividade={(id) => void alternarAtividade(id, diaAberto)}
+            aoAlternarFalta={() => void alternarFalta(diaAberto)}
+            aoFechar={() => setDiaAberto(null)}
+          />
+        )}
       </section>
 
       <section className="rounded-2xl border border-borda bg-superficie p-4">
@@ -173,7 +211,7 @@ function Numero({ rotulo, valor, sufixo }: { rotulo: string; valor: number; sufi
  * se enxerga constancia.
  */
 function Calendario({
-  mes, sessoes, atividades, extras, faltas, editavel, aoAlternarFalta, aoMudarMes,
+  mes, sessoes, atividades, extras, faltas, editavel, diaAberto, aoAbrirDia, aoMudarMes,
 }: {
   mes: Date
   sessoes: Sessao[]
@@ -181,7 +219,8 @@ function Calendario({
   extras: AtividadeRegistro[]
   faltas: Falta[]
   editavel: boolean
-  aoAlternarFalta: (d: Date) => void
+  diaAberto: Date | null
+  aoAbrirDia: (d: Date) => void
   aoMudarMes: (delta: number) => void
 }) {
   const ano = mes.getFullYear()
@@ -267,22 +306,19 @@ function Calendario({
           const motivo = faltasDoMes.get(dia)
           const ehHoje = ehMesAtual && hoje.getDate() === dia
           const data = new Date(ano, m, dia)
-          // Dia treinado nao vira falta, e dia futuro ainda nao aconteceu.
-          const podeMarcar =
-            editavel && !letra && data <= new Date(hoje.getFullYear(), hoje.getMonth(), hoje.getDate())
-          const Celula = podeMarcar ? 'button' : 'div'
+          // Dia futuro ainda nao aconteceu; o resto se edita.
+          const podeAbrir =
+            editavel && data <= new Date(hoje.getFullYear(), hoje.getMonth(), hoje.getDate())
+          const aberto = diaAberto != null && +diaAberto === +data
+          const Celula = podeAbrir ? 'button' : 'div'
           return (
             <Celula
               key={dia}
-              onClick={podeMarcar ? () => aoAlternarFalta(data) : undefined}
-              title={
-                falta
-                  ? `Falta${motivo ? `: ${motivo}` : ''}`
-                  : podeMarcar
-                    ? 'Marcar como falta'
-                    : undefined
-              }
+              onClick={podeAbrir ? () => aoAbrirDia(data) : undefined}
+              title={falta ? `Falta${motivo ? `: ${motivo}` : ''}` : undefined}
               className={`relative flex aspect-square flex-col items-center justify-center rounded-lg ${
+                aberto ? 'ring-2 ring-acento ring-offset-2 ring-offset-superficie ' : ''
+              }${
                 letra
                   ? 'bg-feito text-fundo'
                   : falta
@@ -318,10 +354,106 @@ function Calendario({
 
       {editavel && (
         <p className="mt-3 text-xs text-fraco">
-          Toque num dia sem treino para marcar ou tirar uma falta.
+          Toque num dia para marcar um extra que você esqueceu, ou uma falta.
         </p>
       )}
     </div>
+  )
+}
+
+/**
+ * O dia aberto para conserto.
+ *
+ * Esquecer de marcar acontece — foi por isso que a falta virou registro,
+ * e vale igual para os extras. Sem isto, o jiu-jitsu de ontem se perde e
+ * a meta semanal passa a mentir.
+ */
+function PainelDoDia({
+  dia, atividades, extras, treinou, faltou,
+  aoAlternarAtividade, aoAlternarFalta, aoFechar,
+}: {
+  dia: Date
+  atividades: Atividade[]
+  extras: AtividadeRegistro[]
+  treinou: boolean
+  faltou: boolean
+  aoAlternarAtividade: (id: string) => void
+  aoAlternarFalta: () => void
+  aoFechar: () => void
+}) {
+  const chave = chaveDia(dia)
+  const feito = (id: string) => extras.some((r) => r.atividade_id === id && r.dia === chave)
+
+  return (
+    <div className="mt-4 rounded-xl border border-acento/40 bg-elevado p-3">
+      <div className="mb-2 flex items-baseline justify-between gap-2">
+        <p className="text-sm font-bold">
+          {dia.toLocaleDateString('pt-BR', { weekday: 'long', day: '2-digit', month: 'long' })}
+        </p>
+        <button onClick={aoFechar} className="text-xs text-suave underline">
+          fechar
+        </button>
+      </div>
+
+      {treinou && (
+        <p className="mb-2 text-xs text-feito">Treino registrado neste dia.</p>
+      )}
+
+      <div className="flex flex-col gap-1.5">
+        {atividades.map((a) => (
+          <Alternador
+            key={a.id}
+            rotulo={`${a.emoji ?? '•'}  ${a.nome}`}
+            ativo={feito(a.id)}
+            aoClicar={() => aoAlternarAtividade(a.id)}
+          />
+        ))}
+
+        {/* Dia treinado nao vira falta: seria contraditorio. */}
+        {!treinou && (
+          <Alternador
+            rotulo="Não treinei"
+            ativo={faltou}
+            alerta
+            aoClicar={aoAlternarFalta}
+          />
+        )}
+      </div>
+    </div>
+  )
+}
+
+function Alternador({
+  rotulo, ativo, alerta, aoClicar,
+}: {
+  rotulo: string
+  ativo: boolean
+  alerta?: boolean
+  aoClicar: () => void
+}) {
+  // Classes escritas por extenso: o Tailwind varre o codigo em busca de
+  // nomes literais, entao `border-${cor}/40` nao geraria estilo nenhum.
+  const ligado = alerta ? 'border-alerta/40 bg-alerta/10' : 'border-feito/40 bg-feito/10'
+  return (
+    <button
+      onClick={aoClicar}
+      className={`flex items-center justify-between gap-3 rounded-lg border px-3 py-2.5 text-left text-sm ${
+        ativo ? ligado : 'border-borda active:bg-superficie'
+      }`}
+    >
+      <span className="min-w-0 truncate">{rotulo}</span>
+      <span
+        className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-sm font-bold ${
+          ativo
+            ? alerta
+              ? 'bg-alerta text-fundo'
+              : 'bg-feito text-fundo'
+            : 'border border-borda text-fraco'
+        }`}
+      >
+        ✓
+      </span>
+    </button>
   )
 }
 

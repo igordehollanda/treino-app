@@ -325,7 +325,9 @@ function Extras({
           )
         })}
       </div>
-      <p className="mt-2 text-xs text-fraco/70">Um toque marca hoje. Outro desmarca.</p>
+      <p className="mt-2 text-xs text-fraco">
+        Um toque marca hoje, outro desmarca. Esqueceu um dia? Toque nele no Histórico.
+      </p>
     </section>
   )
 }
