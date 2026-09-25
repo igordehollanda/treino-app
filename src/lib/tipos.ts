@@ -229,3 +229,7 @@ export type Medida = {
   tipo_dia: TipoDia | null
   nota: string | null
 }
+
+/** Plano com refeicoes e opcoes ja aninhadas, como a tela consome. */
+export type RefeicaoComOpcoes = PlanoRefeicao & { opcoes: PlanoOpcao[] }
+export type PlanoCompleto = PlanoAlimentar & { refeicoes: RefeicaoComOpcoes[] }

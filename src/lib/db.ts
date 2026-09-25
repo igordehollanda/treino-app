@@ -1,8 +1,10 @@
 import { supabase } from './supabase'
 import { enfileirar } from './fila'
 import type {
-  Atividade, AtividadeRegistro, Exercicio, Falta, Perfil, Periodizacao, PontoProgressao,
-  SemanaCiclo, SerieRegistro, Sessao, TreinoCompleto, UltimaCarga,
+  Atividade, AtividadeRegistro, Exercicio, Falta, ItemAlimento, Medida,
+  MetasNutricionais, OrigemOpcao, Perfil, Periodizacao, PlanoCompleto,
+  PontoProgressao, RefeicaoRegistro, SemanaCiclo, SerieRegistro, Sessao,
+  TipoDiaRefeicao, TreinoCompleto, UltimaCarga,
 } from './tipos'
 import { semanaDoCiclo } from './periodizacao'
 
@@ -522,4 +524,192 @@ export async function criarExercicio(nome: string, grupo: string | null) {
     .single()
   if (error) throw error
   return data as Exercicio
+}
+
+// --- nutricao ---------------------------------------------------------
+// Mesmo desenho do treino: cache antes da rede, id do cliente, upsert
+// idempotente. O que muda e que aqui a chave de conflito de
+// refeicao_registros e o PRIMARY KEY, nao o indice unico — ele e parcial
+// (`where refeicao_id is not null`) e o PostgREST nao sabe expressar o
+// WHERE que a inferencia do ON CONFLICT exigiria. Por isso a tela
+// reaproveita o id do registro que ja existe naquele dia e refeicao.
+
+export async function buscarPlanoAlimentar(perfilId: string): Promise<PlanoCompleto | null> {
+  const { data, error } = await supabase
+    .from('planos_alimentares')
+    .select(`
+      id, perfil_id, nome, ativo, dias_jiu_jitsu, atividade_jiu_jitsu_id,
+      refeicoes:plano_refeicoes (
+        id, plano_id, nome, horario, tipo_dia, ordem, obrigatoria,
+        opcoes:plano_opcoes (
+          id, refeicao_id, rotulo, ordem, padrao, itens, kcal, proteina_g, origem, nota
+        )
+      )
+    `)
+    .eq('perfil_id', perfilId)
+    .eq('ativo', true)
+    .maybeSingle()
+  if (error) throw error
+
+  const plano = data ? ordenarPlano(data as unknown as PlanoCompleto) : null
+  cacheGravar(`plano-alimentar:${perfilId}`, plano)
+  return plano
+}
+
+export function planoAlimentarEmCache(perfilId: string) {
+  return cacheLer<PlanoCompleto>(`plano-alimentar:${perfilId}`)
+}
+
+// O PostgREST nao garante a ordem dentro do aninhamento. Ordenar aqui, uma
+// vez, evita cada tela lembrar de ordenar de novo.
+function ordenarPlano(p: PlanoCompleto): PlanoCompleto {
+  return {
+    ...p,
+    refeicoes: [...p.refeicoes]
+      .sort((a, b) => a.ordem - b.ordem)
+      .map((r) => ({ ...r, opcoes: [...r.opcoes].sort((a, b) => a.ordem - b.ordem) })),
+  }
+}
+
+export async function buscarMetas(perfilId: string): Promise<MetasNutricionais | null> {
+  const { data, error } = await supabase
+    .from('metas_nutricionais')
+    .select('*')
+    .eq('perfil_id', perfilId)
+    .maybeSingle()
+  if (error) throw error
+  cacheGravar(`metas:${perfilId}`, data)
+  return data as MetasNutricionais | null
+}
+
+export function metasEmCache(perfilId: string) {
+  return cacheLer<MetasNutricionais>(`metas:${perfilId}`)
+}
+
+export async function salvarMetas(metas: MetasNutricionais) {
+  const { error } = await supabase
+    .from('metas_nutricionais')
+    .upsert({ ...metas, atualizado_em: new Date().toISOString() }, { onConflict: 'perfil_id' })
+  if (error) throw error
+  cacheGravar(`metas:${metas.perfil_id}`, metas)
+}
+
+export async function buscarRegistrosDeRefeicao(
+  perfilId: string,
+  de: string,
+  ate: string,
+): Promise<RefeicaoRegistro[]> {
+  const { data, error } = await supabase
+    .from('refeicao_registros')
+    .select('*')
+    .eq('perfil_id', perfilId)
+    .gte('dia', de)
+    .lte('dia', ate)
+    .order('registrado_em')
+  if (error) throw error
+  cacheGravar(`refeicoes:${perfilId}:${de}:${ate}`, data)
+  return data as RefeicaoRegistro[]
+}
+
+export function registrosDeRefeicaoEmCache(perfilId: string, de: string, ate: string) {
+  return cacheLer<RefeicaoRegistro[]>(`refeicoes:${perfilId}:${de}:${ate}`) ?? []
+}
+
+/** Sobe pela fila: marcar uma refeicao nunca espera a rede. */
+export async function registrarRefeicao(r: RefeicaoRegistro) {
+  await enfileirar({ tabela: 'refeicao_registros', dados: { ...r } })
+}
+
+export async function apagarRegistroDeRefeicao(id: string) {
+  const { error } = await supabase.from('refeicao_registros').delete().eq('id', id)
+  if (error) throw error
+}
+
+export async function buscarMedidas(perfilId: string, desde: string): Promise<Medida[]> {
+  const { data, error } = await supabase
+    .from('medidas_diarias')
+    .select('*')
+    .eq('perfil_id', perfilId)
+    .gte('dia', desde)
+    .order('dia')
+  if (error) throw error
+  cacheGravar(`medidas:${perfilId}:${desde}`, data)
+  return data as Medida[]
+}
+
+export function medidasEmCache(perfilId: string, desde: string) {
+  return cacheLer<Medida[]>(`medidas:${perfilId}:${desde}`) ?? []
+}
+
+/**
+ * Grava SO as colunas passadas.
+ *
+ * O peso e da manha e a agua e da tarde; mandar a linha inteira faria a
+ * segunda escrita apagar a primeira quando as duas estivessem na fila.
+ * A agua vai sempre como total do dia, nunca como incremento, para o
+ * reenvio da fila ser inofensivo.
+ */
+export async function salvarMedida(
+  perfilId: string,
+  dia: string,
+  campos: Partial<Omit<Medida, 'perfil_id' | 'dia'>>,
+) {
+  await enfileirar({
+    tabela: 'medidas_diarias',
+    dados: { perfil_id: perfilId, dia, ...campos, atualizado_em: new Date().toISOString() },
+    conflito: 'perfil_id,dia',
+  })
+}
+
+// --- edicao do plano alimentar ---------------------------------------
+
+export async function salvarPlanoAlimentar(p: {
+  id?: string; perfil_id: string; nome: string
+  dias_jiu_jitsu: number[]; atividade_jiu_jitsu_id: string | null
+}) {
+  const { error } = await supabase
+    .from('planos_alimentares')
+    .upsert({ ...p, id: p.id ?? crypto.randomUUID(), ativo: true })
+  if (error) throw error
+}
+
+export async function salvarRefeicaoDoPlano(r: {
+  id?: string; plano_id: string; nome: string; horario: string
+  tipo_dia: TipoDiaRefeicao; ordem: number; obrigatoria: boolean
+}) {
+  const { error } = await supabase
+    .from('plano_refeicoes')
+    .upsert({ ...r, id: r.id ?? crypto.randomUUID() })
+  if (error) throw error
+}
+
+export async function apagarRefeicaoDoPlano(id: string) {
+  const { error } = await supabase.from('plano_refeicoes').delete().eq('id', id)
+  if (error) throw error
+}
+
+export async function salvarOpcao(o: {
+  id?: string; refeicao_id: string; rotulo: string; ordem: number; padrao: boolean
+  itens: ItemAlimento[]; kcal: number | null; proteina_g: number | null
+  origem: OrigemOpcao; nota: string | null
+}) {
+  // Uma padrao por refeicao: tirar a antiga ANTES evita o indice unico
+  // recusar a troca no meio do caminho.
+  if (o.padrao) {
+    const { error } = await supabase
+      .from('plano_opcoes')
+      .update({ padrao: false })
+      .eq('refeicao_id', o.refeicao_id)
+      .eq('padrao', true)
+    if (error) throw error
+  }
+  const { error } = await supabase
+    .from('plano_opcoes')
+    .upsert({ ...o, id: o.id ?? crypto.randomUUID() })
+  if (error) throw error
+}
+
+export async function apagarOpcao(id: string) {
+  const { error } = await supabase.from('plano_opcoes').delete().eq('id', id)
+  if (error) throw error
 }

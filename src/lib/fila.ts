@@ -8,7 +8,7 @@ import { supabase } from './supabase'
 
 type Pendente = {
   id: string
-  tabela: 'sessoes' | 'series_registros'
+  tabela: 'sessoes' | 'series_registros' | 'refeicao_registros' | 'medidas_diarias'
   dados: Record<string, unknown>
   conflito?: string
 }

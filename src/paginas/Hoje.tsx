@@ -9,6 +9,7 @@ import {
   marcarFalta, planoEmCache, semanaEmCache, treinosEmCache,
 } from '../lib/db'
 import { chaveDia, inicioDaSemana } from '../lib/datas'
+import CartaoAlimentacao from '../componentes/CartaoAlimentacao'
 import type { Atividade, AtividadeRegistro, Falta } from '../lib/tipos'
 import type { SemanaCiclo, Sessao, TreinoCompleto } from '../lib/tipos'
 
@@ -88,6 +89,14 @@ export default function Hoje() {
   const resto = meusTreinos.filter((t) => t.id !== principal?.id)
 
   const hojeChave = chaveDia(new Date())
+
+  // Quais atividades foram marcadas hoje. Quem decide se isso torna o dia
+  // "de jiu-jitsu" e o proprio plano alimentar, pelo atividade_jiu_jitsu_id
+  // — casar por nome aqui quebraria no dia em que a atividade mudar de nome.
+  const atividadesDeHoje = useMemo(
+    () => registros.filter((r) => r.dia === hojeChave).map((r) => r.atividade_id),
+    [registros, hojeChave],
+  )
   const faltouHoje = faltas.some((f) => f.dia === hojeChave)
 
   /** Iniciou por engano: apaga a sessao e devolve o dia ao normal. */
@@ -254,6 +263,12 @@ export default function Hoje() {
           registros={registros}
           aoAlternar={(a) => void alternarAtividade(a)}
         />
+      )}
+
+      {/* O personal nao ve nada de nutricao — nem aqui, nem no menu, nem
+          no banco (RLS por eh_aluno()). */}
+      {!ehPersonal && perfil && (
+        <CartaoAlimentacao perfilId={perfil.id} atividadesDeHoje={atividadesDeHoje} />
       )}
     </div>
   )
