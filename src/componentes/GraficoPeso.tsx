@@ -45,10 +45,13 @@ export default function GraficoPeso({
   const max = Math.ceil(Math.max(...valores) + 0.5)
 
   const LARGURA = 320
+  // A faixa do checkpoint tem 14 de largura; sem essa folga nas pontas ela
+  // sai pela borda do viewBox e aparece cortada pela metade.
+  const FOLGA = 8
   const x = (dia: string) => {
     const t = new Date(`${dia}T12:00:00`).getTime()
     if (t1 === t0) return L + (LARGURA - L) / 2
-    return L + ((t - t0) / (t1 - t0)) * (LARGURA - L - 4)
+    return L + FOLGA + ((t - t0) / (t1 - t0)) * (LARGURA - L - 2 * FOLGA)
   }
   const y = (v: number) => TOPO + ((max - v) / (max - min)) * (ALTURA - TOPO - BASE)
 
@@ -104,16 +107,20 @@ export default function GraficoPeso({
           <circle
             cx={x(comMedia[0].dia)}
             cy={y(comMedia[0].media as number)}
-            r={3.5}
-            className="fill-acento-texto"
+            r={4}
+            className="fill-acento-texto stroke-fundo"
+            strokeWidth={1.5}
           />
         ) : null}
 
+        {/* As pontas do EIXO, nao da serie de pesagens: um checkpoint
+            futuro estica o grafico para a direita, e rotular com a ultima
+            pesagem faria a data mentir sobre onde o grafico termina. */}
         <text x={L} y={ALTURA - 4} className="fill-fraco" fontSize={9}>
-          {curta(pontos[0].dia)}
+          {curta(dias[0])}
         </text>
         <text x={LARGURA} y={ALTURA - 4} textAnchor="end" className="fill-fraco" fontSize={9}>
-          {curta(pontos[pontos.length - 1].dia)}
+          {curta(dias[dias.length - 1])}
         </text>
       </svg>
 
