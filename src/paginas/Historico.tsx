@@ -25,6 +25,9 @@ export default function Historico() {
   // O dia aberto para edicao retroativa. Esqueceu de marcar o jiu-jitsu
   // de ontem, ou a falta de quinta: e aqui que se conserta.
   const [diaAberto, setDiaAberto] = useState<Date | null>(null)
+  // Falha de gravacao precisa aparecer. Reverter a marca em silencio faz
+  // a pessoa achar que o toque nao pegou e tentar de novo, para sempre.
+  const [erro, setErro] = useState<string | null>(null)
   const [mes, setMes] = useState(() => {
     const d = new Date()
     return new Date(d.getFullYear(), d.getMonth(), 1)
@@ -75,11 +78,12 @@ export default function Historico() {
         ? fs.filter((f) => f.dia !== chave)
         : [...fs, { perfil_id: perfil.id, dia: chave, motivo: null }],
     )
+    setErro(null)
     try {
       if (jaFaltou) await desmarcarFalta(perfil.id, chave)
       else await marcarFalta(perfil.id, chave, null)
     } catch (e) {
-      console.error(e)
+      setErro(mensagem(e))
       await buscarFaltas(perfil.id, new Date(Date.now() - 400 * 864e5))
         .then(setFaltas)
         .catch(console.error)
@@ -88,7 +92,10 @@ export default function Historico() {
 
   /** Marca ou desmarca uma atividade num dia qualquer, nao so hoje. */
   async function alternarAtividade(atividadeId: string, dia: Date) {
-    if (!perfil || vendo !== perfil.id) return
+    if (!perfil || vendo !== perfil.id) {
+      setErro('só dá para editar o seu próprio histórico')
+      return
+    }
     const chave = chaveDia(dia)
     const feito = extras.some((r) => r.atividade_id === atividadeId && r.dia === chave)
 
@@ -97,13 +104,14 @@ export default function Historico() {
         ? rs.filter((r) => !(r.atividade_id === atividadeId && r.dia === chave))
         : [...rs, { atividade_id: atividadeId, perfil_id: perfil.id, dia: chave, duracao_min: null }],
     )
+    setErro(null)
     try {
       await marcarAtividade(atividadeId, perfil.id, chave, !feito)
     } catch (e) {
-      console.error(e)
+      setErro(mensagem(e))
       await buscarRegistrosDeAtividade(perfil.id, new Date(Date.now() - 400 * 864e5))
         .then(setExtras)
-        .catch(console.error)
+        .catch(() => {})
     }
   }
 
@@ -159,7 +167,11 @@ export default function Historico() {
             faltou={faltas.some((f) => f.dia === chaveDia(diaAberto))}
             aoAlternarAtividade={(id) => void alternarAtividade(id, diaAberto)}
             aoAlternarFalta={() => void alternarFalta(diaAberto)}
-            aoFechar={() => setDiaAberto(null)}
+            erro={erro}
+            aoFechar={() => {
+              setDiaAberto(null)
+              setErro(null)
+            }}
           />
         )}
       </section>
@@ -361,6 +373,15 @@ function Calendario({
   )
 }
 
+/** O texto do erro do Supabase, sem inventar diagnóstico. */
+function mensagem(e: unknown) {
+  if (e && typeof e === 'object' && 'message' in e) {
+    const { message, code } = e as { message?: string; code?: string }
+    return `${message ?? 'erro desconhecido'}${code ? ` (${code})` : ''}`
+  }
+  return String(e)
+}
+
 /**
  * O dia aberto para conserto.
  *
@@ -370,7 +391,7 @@ function Calendario({
  */
 function PainelDoDia({
   dia, atividades, extras, treinou, faltou,
-  aoAlternarAtividade, aoAlternarFalta, aoFechar,
+  aoAlternarAtividade, aoAlternarFalta, erro, aoFechar,
 }: {
   dia: Date
   atividades: Atividade[]
@@ -379,6 +400,7 @@ function PainelDoDia({
   faltou: boolean
   aoAlternarAtividade: (id: string) => void
   aoAlternarFalta: () => void
+  erro: string | null
   aoFechar: () => void
 }) {
   const chave = chaveDia(dia)
@@ -397,6 +419,18 @@ function PainelDoDia({
 
       {treinou && (
         <p className="mb-2 text-xs text-feito">Treino registrado neste dia.</p>
+      )}
+
+      {erro && (
+        <p className="mb-2 rounded-lg border border-erro/30 bg-erro/10 px-3 py-2 text-xs text-erro">
+          Não consegui gravar: {erro}
+        </p>
+      )}
+
+      {atividades.length === 0 && (
+        <p className="mb-2 text-xs text-fraco">
+          Nenhuma atividade extra cadastrada. Crie em Hoje → conta → Extras.
+        </p>
       )}
 
       <div className="flex flex-col gap-1.5">
