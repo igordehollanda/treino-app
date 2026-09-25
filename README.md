@@ -132,11 +132,54 @@ Dia em branco é ambíguo: pode ser falta ou esquecimento de anotar. `faltas`
 separa as duas coisas. O motivo é **opcional** de propósito — exigir
 justificativa faria as pessoas simplesmente não marcarem.
 
+### Nutrição é check-in, não contagem de calorias
+
+Cada refeição prevista recebe um estado (`cumprida`, `parcial`,
+`fora_do_plano`, `pulada`); kcal e proteína vêm prontas da opção do plano. Um
+banco de alimentos com busca e pesagem transformaria cada refeição em cinco
+minutos de digitação, e o registro morreria em uma semana.
+
+Vale o mesmo princípio do RIR e das faltas: refeição **sem linha** é não
+registrada, e `pulada` é uma escolha explícita. A aderência mostra as duas
+coisas separadas, e o denominador são as **registradas** — quem esqueceu de
+anotar não leva nota zero.
+
+### Dia normal e dia de jiu-jitsu comem diferente
+
+Nos dias de aula o jantar sólido sai e entra o pré-treino leve das 18h. O tipo
+do dia resolve nesta ordem: escolha manual em `medidas_diarias.tipo_dia`,
+depois a atividade de `planos_alimentares.atividade_jiu_jitsu_id` registrada no
+dia, depois o dia da semana em `dias_jiu_jitsu`, e por fim `normal`.
+
+O dia da semana existe porque a refeição das 18h precisa aparecer **antes** da
+aula, quando a atividade ainda não foi marcada. `dias_jiu_jitsu` usa o
+`getDay()` do JS (0 = domingo), a mesma convenção de `plano_semanal` — duas
+convenções de dia da semana no mesmo projeto é um bug esperando o domingo.
+
+### Plano sem kcal é plano sem números na tela
+
+A Camila não tem prescrição individual. O plano dela tem `kcal` nulo e a tela
+esconde kcal e proteína em vez de mostrar zero: sem prescrição não existe
+número honesto a exibir.
+
+### A origem de cada opção fica visível
+
+`plano_opcoes.origem` separa `nutricionista` (prescrição do Júnior, intacta) de
+`ajuste` (mudança nossa, a validar) e `generico` (orientação sem números). É o
+que faz a conversa com o nutricionista ser sobre linhas concretas, não sobre
+lembranças.
+
+### Peso: a média móvel é a resposta, o ponto do dia é ruído
+
+O peso diário oscila com a água do corpo. A média de 7 dias é a linha grossa
+do gráfico, e ela só aparece com **4 pesagens ou mais** na janela — com menos
+ela sugere tendência onde não há.
+
 ---
 
 ## Modelo de dados
 
-13 tabelas, todas com RLS.
+19 tabelas, todas com RLS.
 
 | Tabela | Papel |
 |---|---|
@@ -151,9 +194,30 @@ justificativa faria as pessoas simplesmente não marcarem.
 | `plano_semanal` | que treino em que dia, **por pessoa** (o E difere) |
 | `atividades`, `atividade_registros` | extras, com meta semanal opcional |
 | `faltas` | ausência assumida, com motivo opcional |
+| `planos_alimentares` | um plano ativo por pessoa; dias de jiu-jitsu padrão; atividade que marca o dia |
+| `plano_refeicoes` | nome, horário, `tipo_dia`, ordem; `obrigatoria = false` fica fora da aderência |
+| `plano_opcoes` | itens (jsonb), kcal, proteína, `origem`, uma `padrao` por refeição |
+| `metas_nutricionais` | peso alvo, checkpoints, regra de corte, metas de água, kcal e proteína por tipo de dia |
+| `refeicao_registros` | estado da refeição no dia, com snapshot; extras fora do plano com `refeicao_id` nulo |
+| `medidas_diarias` | peso, cintura, abdômen, água, sono da noite anterior, álcool, tipo de dia manual |
 
-Funções `SECURITY DEFINER` (`eh_membro`, `eh_personal`, `vejo_treino`) existem
-para consultar `perfis` de dentro das policies sem recursão de RLS.
+Funções `SECURITY DEFINER` (`eh_membro`, `eh_personal`, `vejo_treino`,
+`eh_aluno`) existem para consultar `perfis` de dentro das policies sem recursão
+de RLS.
+
+Nutrição é visível só aos dois alunos (`eh_aluno()`): o personal não lê peso
+nem comida, e o item nem aparece no menu dele.
+
+`refeicao_registros` sobe com conflito no **primary key**, não no índice único
+`(perfil_id, dia, refeicao_id)` — ele é parcial (`where refeicao_id is not
+null`) e o PostgREST não sabe expressar o `WHERE` que a inferência do `ON
+CONFLICT` exigiria. Por isso a tela **reaproveita o id** do registro que já
+existe naquele dia e refeição; gerar um id novo quebra o índice e o upsert é
+recusado.
+
+`medidas_diarias` grava **só as colunas mexidas**: o peso da manhã e a água da
+tarde não podem se sobrescrever quando as duas estão na fila. A água vai como
+total do dia, nunca como incremento, para o reenvio ser inofensivo.
 
 ---
 
@@ -166,7 +230,12 @@ para consultar `perfis` de dentro das policies sem recursão de RLS.
 | `/treinos` **Treinos** | consulta do treino; o aluno alterna entre o dele e o do parceiro |
 | `/treinos/:id` **Editor** | só o personal: exercícios, séries, descanso, para quem, bi-set |
 | `/historico` **Histórico** | calendário mês a mês com a letra do treino, extras e faltas; evolução de carga |
-| `/conta` **Conta** | plano da semana, extras, trocar senha |
+| `/nutricao` **Nutrição** | só alunos. Plano: consulta e edição do próprio, leitura do parceiro. Histórico: peso, calendário de aderência, água e álcool |
+| `/conta` **Conta** | plano da semana, extras, metas de nutrição, trocar senha |
+
+O cartão **Alimentação** fica no fim do `/`: chip do tipo de dia, peso em jejum
+(às quartas também a fita), refeições do dia com ✓ de 56px, extras fora do
+plano, água, álcool e o total contra a meta.
 
 ---
 
@@ -182,12 +251,18 @@ src/
     periodizacao.ts semana do ciclo e repetição do dia
     datas.ts        chaveDia, inicioDaSemana (semana começa na segunda)
     execucao.ts     link de demonstração do exercício
+    nutricao.ts     tipo do dia, totais, aderência, série de peso — funções puras
     tipos.ts        tipos do domínio
-  paginas/          Login, Hoje, Execucao, Treinos, EditorTreino, Historico, Conta
-  componentes/      Layout, GraficoCarga, SeletorExercicio
+  paginas/          Login, Hoje, Execucao, Treinos, EditorTreino, Historico,
+                    Nutricao, Conta
+  componentes/      Layout, GraficoCarga, GraficoPeso, SeletorExercicio,
+                    CartaoAlimentacao
+testes/
+  regras-nutricao.mjs   18 asserts sobre src/lib/nutricao.ts (npm run teste)
 supabase/
-  migrations/       0001 a 0008, rodar em ordem
-  treinos_camila_igor.sql   os treinos reais (dados, não schema)
+  migrations/       0001 a 0009, rodar em ordem
+  treinos_camila_igor.sql          os treinos reais (dados, não schema)
+  plano_alimentar_camila_igor.sql  os planos alimentares reais
   SETUP.md          passo a passo da configuração
 ```
 
@@ -209,7 +284,9 @@ supabase/
   marcar extra, marcar falta, plano da semana.
 - **Cache antes da rede**: as telas abrem com o que está no `localStorage` e
   corrigem quando a resposta chega. Academia tem sinal ruim.
-- **Alvo de toque ≥ 48px**; o ✓ de concluir série tem 56.
+- **Alvo de toque ≥ 48px**; o ✓ de concluir série e o de marcar refeição têm 56.
+  Links de texto secundários ("trocar", "tirar") são exceção assumida: eles
+  vivem dentro de uma linha maior, que é o alvo de verdade.
 
 ---
 
@@ -217,10 +294,15 @@ supabase/
 
 ```bash
 npm run build      # tsc -b && vite build; o typecheck é o primeiro filtro
+npm run teste      # regras puras de nutrição, sobre o módulo real compilado
 npm run preview    # serve o build em :4173
 ```
 
-Não há suíte de testes. As mudanças de tela foram verificadas rodando o build
+`npm run teste` compila `src/lib/nutricao.ts` com o esbuild e testa o módulo
+**real**. Antes ele rodava sobre uma cópia transcrita à mão, e foi exatamente
+por isso que os nomes das colunas divergiram do schema sem ninguém perceber.
+
+Fora as regras puras, as mudanças de tela foram verificadas rodando o build
 num Chromium headless (Playwright) com as respostas do Supabase simuladas por
 `page.route`, em viewport de celular (390×844) — marcando séries, trocando
 exercício, navegando meses. É um harness descartável, não versionado; vale
