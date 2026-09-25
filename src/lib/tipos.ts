@@ -151,6 +151,8 @@ export type PlanoAlimentar = {
   /** getDay() do JS: 0 = domingo. Nunca nulo; vazio quando nao ha dia fixo. */
   dias_jiu_jitsu: number[]
   atividade_jiu_jitsu_id: string | null
+  /** Regras que valem para o plano inteiro: alergia, proteína permitida, trocas. */
+  observacao: string | null
 }
 
 export type PlanoRefeicao = {

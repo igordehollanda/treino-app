@@ -147,6 +147,12 @@ function AbaPlano({ perfilId, editavel }: { perfilId: string; editavel: boolean 
     <div className="flex flex-col gap-3">
       <p className="text-sm text-suave">{plano.nome}</p>
 
+      {plano.observacao && (
+        <p className="rounded-xl border border-alerta/40 bg-alerta/10 p-3 text-sm text-texto">
+          {plano.observacao}
+        </p>
+      )}
+
       {plano.refeicoes.map((r) => (
         <CartaoRefeicao
           key={r.id}

@@ -167,6 +167,8 @@ export default function CartaoAlimentacao({
       <div className="flex flex-col gap-3 rounded-2xl border border-borda bg-superficie p-4">
         {erro && <p className="text-xs text-erro">{erro}</p>}
 
+        {plano.observacao && <RegrasDoPlano texto={plano.observacao} />}
+
         <ChipTipoDia
           tipo={tipo}
           manual={medida?.tipo_dia != null}
@@ -281,6 +283,29 @@ export default function CartaoAlimentacao({
         />
       )}
     </section>
+  )
+}
+
+/**
+ * Regras que valem para o plano inteiro — entre elas a alergia.
+ *
+ * Recolhida porque não muda de um dia para o outro e competiria com o
+ * registro, que é o que se vem fazer aqui. Mas fica na tela onde a comida
+ * é escolhida, não só no papel da geladeira.
+ */
+function RegrasDoPlano({ texto }: { texto: string }) {
+  const [aberta, setAberta] = useState(false)
+  return aberta ? (
+    <p className="rounded-xl border border-alerta/40 bg-alerta/10 p-3 text-xs text-texto">
+      {texto}{' '}
+      <button onClick={() => setAberta(false)} className="text-suave underline">
+        ocultar
+      </button>
+    </p>
+  ) : (
+    <button onClick={() => setAberta(true)} className="self-start text-xs text-alerta underline">
+      Regras do plano e alergia
+    </button>
   )
 }
 

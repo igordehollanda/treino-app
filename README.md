@@ -162,6 +162,22 @@ A Camila não tem prescrição individual. O plano dela tem `kcal` nulo e a tela
 esconde kcal e proteína em vez de mostrar zero: sem prescrição não existe
 número honesto a exibir.
 
+### Kcal e proteína pertencem à refeição, não à opção
+
+O plano do Júnior dá **um** valor por refeição, não um por opção — ele trata as
+opções de uma mesma refeição como equivalentes. O seed segue isso: todas as
+opções de uma refeição entram com o mesmo número. Inventar um valor diferente
+para cada uma daria a impressão de uma precisão que a prescrição não tem.
+
+### As regras do plano inteiro moram no app
+
+`planos_alimentares.observacao` guarda o que não cabe em nenhuma refeição e
+vale para todas: proteína permitida, **alergia a crustáceos**, e a regra de que
+toda troca sai da lista de substituições do Júnior. Fica recolhida no cartão do
+Hoje (não muda de um dia para o outro e competiria com o registro) e aberta no
+topo da aba Plano. O lugar de uma alergia é a tela onde a comida é escolhida,
+não só o papel da geladeira.
+
 ### A origem de cada opção fica visível
 
 `plano_opcoes.origem` separa `nutricionista` (prescrição do Júnior, intacta) de
@@ -194,7 +210,7 @@ ela sugere tendência onde não há.
 | `plano_semanal` | que treino em que dia, **por pessoa** (o E difere) |
 | `atividades`, `atividade_registros` | extras, com meta semanal opcional |
 | `faltas` | ausência assumida, com motivo opcional |
-| `planos_alimentares` | um plano ativo por pessoa; dias de jiu-jitsu padrão; atividade que marca o dia |
+| `planos_alimentares` | um plano ativo por pessoa; dias de jiu-jitsu padrão; atividade que marca o dia; `observacao` com as regras do plano inteiro |
 | `plano_refeicoes` | nome, horário, `tipo_dia`, ordem; `obrigatoria = false` fica fora da aderência |
 | `plano_opcoes` | itens (jsonb), kcal, proteína, `origem`, uma `padrao` por refeição |
 | `metas_nutricionais` | peso alvo, checkpoints, regra de corte, metas de água, kcal e proteína por tipo de dia |
@@ -260,9 +276,10 @@ src/
 testes/
   regras-nutricao.mjs   18 asserts sobre src/lib/nutricao.ts (npm run teste)
 supabase/
-  migrations/       0001 a 0009, rodar em ordem
+  migrations/       0001 a 0010, rodar em ordem
   treinos_camila_igor.sql          os treinos reais (dados, não schema)
-  plano_alimentar_camila_igor.sql  os planos alimentares reais
+  plano_alimentar_camila_igor.sql  os planos alimentares reais; SUBSTITUI o
+                                   plano ativo ao rodar de novo
   SETUP.md          passo a passo da configuração
 ```
 
@@ -302,12 +319,28 @@ npm run preview    # serve o build em :4173
 **real**. Antes ele rodava sobre uma cópia transcrita à mão, e foi exatamente
 por isso que os nomes das colunas divergiram do schema sem ninguém perceber.
 
-Fora as regras puras, as mudanças de tela foram verificadas rodando o build
-num Chromium headless (Playwright) com as respostas do Supabase simuladas por
-`page.route`, em viewport de celular (390×844) — marcando séries, trocando
-exercício, navegando meses. É um harness descartável, não versionado; vale
-recriá-lo quando mexer em fluxo, porque é fácil quebrar a execução sem que o
-TypeScript reclame.
+Para as telas de nutrição há um harness versionado, que não precisa de banco
+nem de `.env` real:
+
+```bash
+npm run build && npx vite preview --port 4191 &
+PLAYWRIGHT=$(npm root -g)/playwright/index.mjs node testes/tela-nutricao.mjs
+```
+
+São 42 verificações num Chromium headless a 390×840, com as respostas do
+Supabase simuladas por `page.route` e o relógio congelado antes do app rodar
+(quase tudo ali depende de que dia da semana é hoje): o dia de jiu-jitsu pelas
+três vias, o ✓ sem rede entrando na fila e subindo uma vez só, a troca de
+estado reaproveitando o id, o plano sem kcal da Camila, o personal sem acesso,
+a água, a média móvel e os alvos de toque.
+
+As telas de treino ainda não têm harness versionado; foram verificadas do
+mesmo jeito, num script descartável. Vale recriá-lo ao mexer em fluxo, porque
+é fácil quebrar a execução sem que o TypeScript reclame.
+
+Contraste: o script de medição percorre cada texto da página, compõe o fundo
+efetivo subindo a árvore (as superfícies com alfa mudam a conta) e compara com
+o mínimo de AA. Medir, não afirmar.
 
 Ao mexer no visual, olhe **no tamanho de celular**. O desktop é secundário: o
 app é usado na academia.

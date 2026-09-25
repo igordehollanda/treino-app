@@ -538,7 +538,7 @@ export async function buscarPlanoAlimentar(perfilId: string): Promise<PlanoCompl
   const { data, error } = await supabase
     .from('planos_alimentares')
     .select(`
-      id, perfil_id, nome, ativo, dias_jiu_jitsu, atividade_jiu_jitsu_id,
+      id, perfil_id, nome, ativo, dias_jiu_jitsu, atividade_jiu_jitsu_id, observacao,
       refeicoes:plano_refeicoes (
         id, plano_id, nome, horario, tipo_dia, ordem, obrigatoria,
         opcoes:plano_opcoes (
@@ -666,6 +666,7 @@ export async function salvarMedida(
 export async function salvarPlanoAlimentar(p: {
   id?: string; perfil_id: string; nome: string
   dias_jiu_jitsu: number[]; atividade_jiu_jitsu_id: string | null
+  observacao: string | null
 }) {
   const { error } = await supabase
     .from('planos_alimentares')

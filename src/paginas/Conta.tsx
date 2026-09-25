@@ -346,6 +346,9 @@ function Metas({ perfilId }: { perfilId: string }) {
     void salvarPlanoAlimentar({
       id: plano.id, perfil_id: plano.perfil_id, nome: plano.nome,
       dias_jiu_jitsu: dias, atividade_jiu_jitsu_id: plano.atividade_jiu_jitsu_id,
+      // O upsert manda a linha inteira; sem isto, mexer num dia apagaria
+      // a observacao do plano — onde mora a alergia.
+      observacao: plano.observacao,
     }).catch(console.error)
   }
 
