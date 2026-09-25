@@ -1,8 +1,10 @@
 import { NavLink, Outlet } from 'react-router-dom'
 import { useEffect, useState } from 'react'
 import { observarFila } from '../lib/fila'
+import { useAuth } from '../lib/auth'
 
 export default function Layout() {
+  const { ehPersonal } = useAuth()
   const [naFila, setNaFila] = useState(0)
   const [online, setOnline] = useState(navigator.onLine)
 
@@ -33,12 +35,16 @@ export default function Layout() {
           a ponta numa tela larga, os tres itens ficam a meio metro um do
           outro e a barra parece quebrada. */}
       <nav
-        className="fixed inset-x-0 bottom-0 z-10 grid grid-cols-3 border-t border-borda bg-superficie/95 backdrop-blur
-                   md:static md:mx-auto md:mt-5 md:flex md:w-fit md:gap-1 md:rounded-xl md:border md:border-borda md:p-1"
+        className={`fixed inset-x-0 bottom-0 z-10 grid border-t border-borda bg-superficie/95 backdrop-blur
+                   md:static md:mx-auto md:mt-5 md:flex md:w-fit md:gap-1 md:rounded-xl md:border md:border-borda md:p-1 ${
+                     ehPersonal ? 'grid-cols-3' : 'grid-cols-4'
+                   }`}
         style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
       >
         <Aba para="/" rotulo="Hoje" />
         <Aba para="/treinos" rotulo="Treinos" />
+        {/* O personal nao ve nutricao: nem aqui, nem na rota, nem no banco. */}
+        {!ehPersonal && <Aba para="/nutricao" rotulo="Comida" />}
         <Aba para="/historico" rotulo="Histórico" />
       </nav>
 
