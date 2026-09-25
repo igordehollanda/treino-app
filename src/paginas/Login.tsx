@@ -130,7 +130,7 @@ export default function Login() {
           <button
             type="submit"
             disabled={estado === 'enviando'}
-            className="rounded-xl bg-acento py-3.5 text-base font-semibold active:bg-acento-forte disabled:opacity-50"
+            className="rounded-xl bg-acento py-3.5 text-base font-semibold text-white active:bg-acento-forte disabled:opacity-50"
           >
             {estado === 'enviando'
               ? 'Aguarde…'

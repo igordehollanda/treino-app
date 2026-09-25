@@ -61,7 +61,7 @@ export default function Nutricao() {
             <button
               key={a.id}
               onClick={() => setVendo(a.id)}
-              className={`min-h-11 flex-1 rounded-xl border px-3 text-sm font-semibold ${
+              className={`min-h-12 flex-1 rounded-xl border px-3 text-sm font-semibold ${
                 vendo === a.id
                   ? 'border-acento bg-acento/10 text-texto'
                   : 'border-borda bg-superficie text-suave active:bg-elevado'
@@ -90,7 +90,7 @@ function AbaBotao({
   return (
     <button
       onClick={aoTocar}
-      className={`min-h-11 flex-1 rounded-lg text-sm font-semibold ${
+      className={`min-h-12 flex-1 rounded-lg text-sm font-semibold ${
         ativa ? 'bg-acento text-white' : 'text-suave active:bg-elevado'
       }`}
     >
@@ -216,7 +216,7 @@ function CartaoRefeicao({
                   kcal: null, proteina_g: null, origem: 'ajuste', nota: null,
                 }).then(aoMudar).catch(console.error)
               }}
-              className="min-h-11 rounded-xl border border-dashed border-borda text-sm text-fraco active:bg-elevado"
+              className="min-h-12 rounded-xl border border-dashed border-borda text-sm text-fraco active:bg-elevado"
             >
               + Opção
             </button>
@@ -279,14 +279,14 @@ function EditorRefeicao({
           value={nome}
           onChange={(e) => setNome(e.target.value)}
           onBlur={() => gravar()}
-          className="min-h-11 flex-1 rounded-lg border border-borda bg-superficie px-3 text-sm outline-none focus:border-acento"
+          className="min-h-12 flex-1 rounded-lg border border-borda bg-superficie px-3 text-sm outline-none focus:border-acento"
         />
         <input
           type="time"
           value={horario}
           onChange={(e) => setHorario(e.target.value)}
           onBlur={() => gravar({ horario: horario })}
-          className="min-h-11 w-28 rounded-lg border border-borda bg-superficie px-2 text-sm outline-none focus:border-acento"
+          className="min-h-12 w-28 rounded-lg border border-borda bg-superficie px-2 text-sm outline-none focus:border-acento"
         />
       </div>
 
@@ -295,7 +295,7 @@ function EditorRefeicao({
           <button
             key={t}
             onClick={() => { setTipo(t); gravar({ tipo_dia: t }) }}
-            className={`min-h-11 flex-1 rounded-lg border px-2 text-xs ${
+            className={`min-h-12 flex-1 rounded-lg border px-2 text-xs ${
               tipo === t ? 'border-acento bg-acento/10' : 'border-borda text-suave'
             }`}
           >
@@ -307,7 +307,7 @@ function EditorRefeicao({
       <div className="flex items-center justify-between gap-2">
         <button
           onClick={() => { setObrigatoria(!obrigatoria); gravar({ obrigatoria: !obrigatoria }) }}
-          className="min-h-11 text-xs text-suave underline"
+          className="min-h-12 text-xs text-suave underline"
         >
           {obrigatoria ? 'entra na aderência' : 'opcional, fora da aderência'}
         </button>
@@ -316,7 +316,7 @@ function EditorRefeicao({
             if (!confirm(`Apagar "${refeicao.nome}" e suas opções?`)) return
             void apagarRefeicaoDoPlano(refeicao.id).then(aoMudar).catch(console.error)
           }}
-          className="min-h-11 text-xs text-erro underline"
+          className="min-h-12 text-xs text-erro underline"
         >
           apagar refeição
         </button>
@@ -351,7 +351,7 @@ function EditorOpcao({ opcao, aoMudar }: { opcao: PlanoOpcao; aoMudar: () => voi
         value={rotulo}
         onChange={(e) => setRotulo(e.target.value)}
         onBlur={() => gravar()}
-        className="min-h-11 rounded-lg border border-borda bg-superficie px-3 text-sm font-semibold outline-none focus:border-acento"
+        className="min-h-12 rounded-lg border border-borda bg-superficie px-3 text-sm font-semibold outline-none focus:border-acento"
       />
 
       <div className="flex flex-col gap-1.5">
@@ -362,7 +362,7 @@ function EditorOpcao({ opcao, aoMudar }: { opcao: PlanoOpcao; aoMudar: () => voi
               onChange={(e) => setItens(troca(itens, n, { alimento: e.target.value }))}
               onBlur={() => gravar({ itens })}
               placeholder="alimento"
-              className="min-h-11 flex-1 rounded-lg border border-borda bg-superficie px-2 text-xs outline-none focus:border-acento"
+              className="min-h-12 flex-1 rounded-lg border border-borda bg-superficie px-2 text-xs outline-none focus:border-acento"
             />
             <input
               value={it.qtd ?? ''}
@@ -373,14 +373,14 @@ function EditorOpcao({ opcao, aoMudar }: { opcao: PlanoOpcao; aoMudar: () => voi
               onBlur={() => gravar({ itens })}
               inputMode="decimal"
               placeholder="qtd"
-              className="valor min-h-11 w-14 rounded-lg border border-borda bg-superficie px-2 text-center text-xs outline-none focus:border-acento"
+              className="valor min-h-12 w-14 rounded-lg border border-borda bg-superficie px-2 text-center text-xs outline-none focus:border-acento"
             />
             <input
               value={it.unidade}
               onChange={(e) => setItens(troca(itens, n, { unidade: e.target.value }))}
               onBlur={() => gravar({ itens })}
               placeholder="un"
-              className="min-h-11 w-14 rounded-lg border border-borda bg-superficie px-2 text-center text-xs outline-none focus:border-acento"
+              className="min-h-12 w-14 rounded-lg border border-borda bg-superficie px-2 text-center text-xs outline-none focus:border-acento"
             />
             <button
               onClick={() => {
@@ -389,7 +389,7 @@ function EditorOpcao({ opcao, aoMudar }: { opcao: PlanoOpcao; aoMudar: () => voi
                 gravar({ itens: sem })
               }}
               aria-label="Tirar item"
-              className="min-h-11 w-11 shrink-0 rounded-lg border border-borda text-fraco"
+              className="min-h-12 w-11 shrink-0 rounded-lg border border-borda text-fraco"
             >
               ×
             </button>
@@ -397,7 +397,7 @@ function EditorOpcao({ opcao, aoMudar }: { opcao: PlanoOpcao; aoMudar: () => voi
         ))}
         <button
           onClick={() => setItens([...itens, { alimento: '', qtd: null, unidade: 'g' }])}
-          className="min-h-11 rounded-lg border border-dashed border-borda text-xs text-fraco active:bg-superficie"
+          className="min-h-12 rounded-lg border border-dashed border-borda text-xs text-fraco active:bg-superficie"
         >
           + item
         </button>
@@ -411,7 +411,7 @@ function EditorOpcao({ opcao, aoMudar }: { opcao: PlanoOpcao; aoMudar: () => voi
             onChange={(e) => setKcal(e.target.value)}
             onBlur={() => gravar()}
             inputMode="numeric"
-            className="valor min-h-11 w-full rounded-lg border border-borda bg-superficie px-2 text-center text-sm outline-none focus:border-acento"
+            className="valor min-h-12 w-full rounded-lg border border-borda bg-superficie px-2 text-center text-sm outline-none focus:border-acento"
           />
         </label>
         <label className="flex flex-1 items-center gap-1.5 text-xs text-suave">
@@ -421,7 +421,7 @@ function EditorOpcao({ opcao, aoMudar }: { opcao: PlanoOpcao; aoMudar: () => voi
             onChange={(e) => setProt(e.target.value)}
             onBlur={() => gravar()}
             inputMode="decimal"
-            className="valor min-h-11 w-full rounded-lg border border-borda bg-superficie px-2 text-center text-sm outline-none focus:border-acento"
+            className="valor min-h-12 w-full rounded-lg border border-borda bg-superficie px-2 text-center text-sm outline-none focus:border-acento"
           />
         </label>
       </div>
@@ -431,7 +431,7 @@ function EditorOpcao({ opcao, aoMudar }: { opcao: PlanoOpcao; aoMudar: () => voi
         onChange={(e) => setNota(e.target.value)}
         onBlur={() => gravar()}
         placeholder="nota"
-        className="min-h-11 rounded-lg border border-borda bg-superficie px-3 text-xs outline-none focus:border-acento"
+        className="min-h-12 rounded-lg border border-borda bg-superficie px-3 text-xs outline-none focus:border-acento"
       />
 
       {/* A origem e o que faz a conversa com o nutricionista ser sobre
@@ -441,7 +441,7 @@ function EditorOpcao({ opcao, aoMudar }: { opcao: PlanoOpcao; aoMudar: () => voi
           <button
             key={o}
             onClick={() => gravar({ origem: o })}
-            className={`min-h-11 flex-1 rounded-lg border px-1 text-[11px] ${
+            className={`min-h-12 flex-1 rounded-lg border px-1 text-[11px] ${
               opcao.origem === o ? 'border-acento bg-acento/10' : 'border-borda text-suave'
             }`}
           >
@@ -456,7 +456,7 @@ function EditorOpcao({ opcao, aoMudar }: { opcao: PlanoOpcao; aoMudar: () => voi
         ) : (
           <button
             onClick={() => gravar({ padrao: true })}
-            className="min-h-11 text-xs text-suave underline"
+            className="min-h-12 text-xs text-suave underline"
           >
             tornar padrão
           </button>
@@ -466,7 +466,7 @@ function EditorOpcao({ opcao, aoMudar }: { opcao: PlanoOpcao; aoMudar: () => voi
             if (!confirm(`Apagar a opção "${opcao.rotulo}"?`)) return
             void apagarOpcao(opcao.id).then(aoMudar).catch(console.error)
           }}
-          className="min-h-11 text-xs text-erro underline"
+          className="min-h-12 text-xs text-erro underline"
         >
           apagar
         </button>
@@ -616,7 +616,7 @@ function Calendario({
         <button
           onClick={() => aoTrocarMes(new Date(mes.getFullYear(), mes.getMonth() - 1, 1))}
           aria-label="Mês anterior"
-          className="h-11 w-11 rounded-lg text-suave active:bg-elevado"
+          className="h-12 w-12 rounded-lg text-suave active:bg-elevado"
         >
           ‹
         </button>
@@ -624,7 +624,7 @@ function Calendario({
         <button
           onClick={() => aoTrocarMes(new Date(mes.getFullYear(), mes.getMonth() + 1, 1))}
           aria-label="Próximo mês"
-          className="h-11 w-11 rounded-lg text-suave active:bg-elevado"
+          className="h-12 w-12 rounded-lg text-suave active:bg-elevado"
         >
           ›
         </button>

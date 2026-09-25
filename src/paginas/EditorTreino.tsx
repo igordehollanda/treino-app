@@ -144,7 +144,7 @@ export default function EditorTreino() {
         <h2 className="font-semibold">Exercícios</h2>
         <button
           onClick={() => setAdicionando(true)}
-          className="rounded-lg bg-acento px-3 py-1.5 text-sm font-medium"
+          className="rounded-lg bg-acento px-3 py-1.5 text-sm font-medium text-white"
         >
           + Adicionar
         </button>

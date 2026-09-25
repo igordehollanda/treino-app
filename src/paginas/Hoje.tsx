@@ -331,7 +331,7 @@ function Extras({
               </span>
               <span
                 className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-lg font-bold ${
-                  feitoHoje ? 'bg-feito text-fundo' : 'border border-borda text-fraco/70'
+                  feitoHoje ? 'bg-feito text-fundo' : 'border border-borda text-fraco'
                 }`}
               >
                 ✓
@@ -454,7 +454,7 @@ function LinhaTreino({
           {ultima && ` · ${diasAtras(ultima.iniciada_em)}`}
         </span>
       </span>
-      <span className="shrink-0 text-lg text-fraco/70">›</span>
+      <span className="shrink-0 text-lg text-fraco">›</span>
     </button>
   )
 }
@@ -557,9 +557,9 @@ function Semana({
                         ? 'border-2 border-acento text-acento-texto'
                         : letra
                           ? passou
-                            ? 'border border-borda text-fraco/70'
+                            ? 'border border-borda text-fraco'
                             : 'border border-borda-forte text-suave'
-                          : 'text-fraco/70'
+                          : 'text-fraco'
                 }`}
               >
                 {letra ?? '–'}

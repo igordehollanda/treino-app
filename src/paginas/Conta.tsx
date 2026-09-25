@@ -107,7 +107,7 @@ export default function Conta() {
         <button
           type="submit"
           disabled={estado === 'salvando'}
-          className="rounded-xl bg-acento py-3.5 font-semibold active:bg-acento-forte disabled:opacity-50"
+          className="rounded-xl bg-acento py-3.5 font-semibold text-white active:bg-acento-forte disabled:opacity-50"
         >
           {estado === 'salvando' ? 'Salvando…' : 'Salvar senha'}
         </button>
@@ -295,7 +295,7 @@ function Extras({ perfilId }: { perfilId: string }) {
         />
         <button
           type="submit"
-          className="shrink-0 rounded-xl bg-acento px-4 text-sm font-semibold active:bg-acento-forte"
+          className="shrink-0 rounded-xl bg-acento px-4 text-sm font-semibold text-white active:bg-acento-forte"
         >
           +
         </button>
@@ -412,7 +412,7 @@ function Metas({ perfilId }: { perfilId: string }) {
               <button
                 key={dia}
                 onClick={() => mudarDia(dia)}
-                className={`min-h-11 flex-1 rounded-lg border text-xs ${
+                className={`min-h-12 flex-1 rounded-lg border text-xs ${
                   plano.dias_jiu_jitsu.includes(dia)
                     ? 'border-biset/50 bg-biset/15 text-texto'
                     : 'border-borda text-suave'
@@ -502,7 +502,7 @@ function CelulaMeta({ valor, aoMudar }: { valor: number | null; aoMudar: (v: num
       onChange={(e) => setTexto(e.target.value)}
       onBlur={() => aoMudar(texto === '' ? null : Number(texto))}
       placeholder="—"
-      className="valor min-h-11 w-full rounded-lg border border-borda bg-superficie px-2 text-center text-sm outline-none focus:border-acento"
+      className="valor min-h-12 w-full rounded-lg border border-borda bg-superficie px-2 text-center text-sm outline-none focus:border-acento"
     />
   )
 }
@@ -527,24 +527,24 @@ function Checkpoints({
               type="date"
               value={c.dia}
               onChange={(e) => troca(n, { dia: e.target.value })}
-              className="min-h-11 flex-1 rounded-lg border border-borda bg-superficie px-2 text-xs outline-none focus:border-acento"
+              className="min-h-12 flex-1 rounded-lg border border-borda bg-superficie px-2 text-xs outline-none focus:border-acento"
             />
             <input
               inputMode="decimal"
               value={c.min}
               onChange={(e) => troca(n, { min: Number(e.target.value) })}
-              className="valor min-h-11 w-16 rounded-lg border border-borda bg-superficie px-2 text-center text-xs outline-none focus:border-acento"
+              className="valor min-h-12 w-16 rounded-lg border border-borda bg-superficie px-2 text-center text-xs outline-none focus:border-acento"
             />
             <input
               inputMode="decimal"
               value={c.max}
               onChange={(e) => troca(n, { max: Number(e.target.value) })}
-              className="valor min-h-11 w-16 rounded-lg border border-borda bg-superficie px-2 text-center text-xs outline-none focus:border-acento"
+              className="valor min-h-12 w-16 rounded-lg border border-borda bg-superficie px-2 text-center text-xs outline-none focus:border-acento"
             />
             <button
               onClick={() => aoMudar(checkpoints.filter((_, i) => i !== n))}
               aria-label="Tirar checkpoint"
-              className="min-h-11 w-11 shrink-0 rounded-lg border border-borda text-fraco"
+              className="min-h-12 w-11 shrink-0 rounded-lg border border-borda text-fraco"
             >
               ×
             </button>
@@ -552,7 +552,7 @@ function Checkpoints({
         ))}
         <button
           onClick={() => aoMudar([...checkpoints, { dia: '', min: 0, max: 0 }])}
-          className="min-h-11 rounded-lg border border-dashed border-borda text-xs text-fraco active:bg-elevado"
+          className="min-h-12 rounded-lg border border-dashed border-borda text-xs text-fraco active:bg-elevado"
         >
           + checkpoint
         </button>

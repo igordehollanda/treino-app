@@ -96,10 +96,18 @@ export default function GraficoPeso({
           <circle key={p.dia} cx={x(p.dia)} cy={y(p.peso)} r={2} className="fill-suave" />
         ))}
 
-        {/* media movel */}
-        {comMedia.length > 1 && (
+        {/* Media movel. Com uma so, nao ha linha a tracar — mas o dado
+            existe, entao ele aparece como ponto em vez de sumir. */}
+        {comMedia.length > 1 ? (
           <polyline points={linha} fill="none" className="stroke-acento-texto" strokeWidth={2} />
-        )}
+        ) : comMedia.length === 1 ? (
+          <circle
+            cx={x(comMedia[0].dia)}
+            cy={y(comMedia[0].media as number)}
+            r={3.5}
+            className="fill-acento-texto"
+          />
+        ) : null}
 
         <text x={L} y={ALTURA - 4} className="fill-fraco" fontSize={9}>
           {curta(pontos[0].dia)}

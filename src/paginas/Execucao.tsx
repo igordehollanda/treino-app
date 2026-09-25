@@ -817,7 +817,7 @@ function BarraDescanso({
         <button onClick={aoSomar} className="rounded-xl bg-borda px-4 py-2.5 text-sm font-medium">
           +30s
         </button>
-        <button onClick={aoPular} className="rounded-xl bg-acento px-4 py-2.5 text-sm font-medium">
+        <button onClick={aoPular} className="rounded-xl bg-acento px-4 py-2.5 text-sm font-medium text-white">
           Pular
         </button>
       </div>

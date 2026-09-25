@@ -210,7 +210,7 @@ export default function CartaoAlimentacao({
 
         <button
           onClick={() => setExtraAberto(true)}
-          className="rounded-xl border border-dashed border-borda py-2.5 text-sm text-fraco active:bg-elevado"
+          className="min-h-12 rounded-xl border border-dashed border-borda text-sm text-fraco active:bg-elevado"
         >
           + Fora do plano
         </button>
@@ -301,7 +301,7 @@ function ChipTipoDia({
   return (
     <button
       onClick={aoTrocar}
-      className={`flex items-center gap-2 self-start rounded-full border px-3.5 py-2 text-sm font-semibold ${
+      className={`flex min-h-12 items-center gap-2 self-start rounded-full border px-3.5 text-sm font-semibold ${
         jj ? 'border-biset/40 bg-biset/10 text-texto' : 'border-borda bg-elevado text-suave'
       }`}
     >
@@ -352,13 +352,13 @@ function Medidas({
           <span className="text-suave">Dormiu no horário ontem?</span>
           <button
             onClick={() => aoMudar({ dormiu_no_horario: true })}
-            className="min-h-11 rounded-lg border border-borda px-3 text-sm active:bg-elevado"
+            className="min-h-12 rounded-lg border border-borda px-3 text-sm active:bg-elevado"
           >
             sim
           </button>
           <button
             onClick={() => aoMudar({ dormiu_no_horario: false })}
-            className="min-h-11 rounded-lg border border-borda px-3 text-sm active:bg-elevado"
+            className="min-h-12 rounded-lg border border-borda px-3 text-sm active:bg-elevado"
           >
             não
           </button>
@@ -487,14 +487,14 @@ function Agua({
       <div className="mt-2 flex gap-2">
         <button
           onClick={aoBeber}
-          className="min-h-11 flex-1 rounded-xl bg-acento text-sm font-semibold text-white active:bg-acento-forte"
+          className="min-h-12 flex-1 rounded-xl bg-acento text-sm font-semibold text-white active:bg-acento-forte"
         >
           +500 ml
         </button>
         {ml > 0 && (
           <button
             onClick={aoDesfazer}
-            className="min-h-11 rounded-xl border border-borda px-4 text-sm text-suave active:bg-elevado"
+            className="min-h-12 rounded-xl border border-borda px-4 text-sm text-suave active:bg-elevado"
           >
             desfazer
           </button>
@@ -511,14 +511,14 @@ function Alcool({ doses, aoMudar }: { doses: number; aoMudar: (d: number) => voi
       <span className="flex items-center gap-2">
         <button
           onClick={() => aoMudar(Math.max(0, doses - 1))}
-          className="h-11 w-11 rounded-lg border border-borda text-lg active:bg-elevado"
+          className="h-12 w-12 rounded-lg border border-borda text-lg active:bg-elevado"
         >
           −
         </button>
         <span className="valor w-8 text-center text-lg">{doses}</span>
         <button
           onClick={() => aoMudar(doses + 1)}
-          className="h-11 w-11 rounded-lg border border-borda text-lg active:bg-elevado"
+          className="h-12 w-12 rounded-lg border border-borda text-lg active:bg-elevado"
         >
           +
         </button>
@@ -542,7 +542,7 @@ function Folha({ titulo, aoFechar, children }: {
       >
         <div className="mb-3 flex items-baseline justify-between gap-2">
           <p className="text-base font-bold">{titulo}</p>
-          <button onClick={aoFechar} className="min-h-11 text-sm text-suave underline">
+          <button onClick={aoFechar} className="min-h-12 text-sm text-suave underline">
             fechar
           </button>
         </div>
@@ -647,7 +647,7 @@ function FolhaRefeicao({
               value={kcal}
               onChange={(e) => setKcal(e.target.value)}
               placeholder={escolhida?.kcal?.toString() ?? '—'}
-              className="valor min-h-11 w-24 rounded-lg border border-borda bg-elevado px-2 text-center outline-none focus:border-acento"
+              className="valor min-h-12 w-24 rounded-lg border border-borda bg-elevado px-2 text-center outline-none focus:border-acento"
             />
             <span className="text-xs text-fraco">para quando comeu só uma parte</span>
           </label>
@@ -697,7 +697,7 @@ function FolhaRefeicao({
       {registro && (
         <button
           onClick={() => aoDesfazer(registro)}
-          className="mt-3 min-h-11 w-full text-sm text-fraco underline"
+          className="mt-3 min-h-12 w-full text-sm text-fraco underline"
         >
           apagar este registro
         </button>

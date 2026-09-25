@@ -35,7 +35,7 @@ export default function SeletorExercicio({
               const id = await aoCriar(busca.trim(), null)
               await aoEscolher(id)
             }}
-            className="mb-3 w-full rounded-xl bg-acento py-3 text-sm font-semibold"
+            className="mb-3 w-full rounded-xl bg-acento py-3 text-sm font-semibold text-white"
           >
             Criar "{busca.trim()}"
           </button>
