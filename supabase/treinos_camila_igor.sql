@@ -13,9 +13,8 @@
 -- A `ordem` usa dezena = posicao no treino, unidade = pessoa
 -- (0 ambos, 1 Camila, 2 Igor). Assim cada um ve a sequencia certa.
 --
--- Os DESCANSOS foram estimados por tipo de exercicio (composto 90s,
--- maquina 60s, isolador 45s) porque a prescricao nao os define. O Carlos
--- ajusta no app, exercicio por exercicio.
+-- DESCANSO: 90s em todos os exercicios, conforme o Carlos. O app
+-- permite ajustar caso a caso, mas o padrao da prescricao e uniforme.
 --
 -- Re-executavel: apaga os treinos destes ids e recria.
 -- =====================================================================
@@ -138,15 +137,15 @@ from (values
   ('Agachamento cálice',           'I',       12, 3, 90, null),
   ('Leg 45',                       'C',       21, 3, 90, null),
   ('Leg 45 unilateral',            'I',       22, 3, 90, null),
-  ('Cadeira extensora',            'C',       31, 3, 60, null),
-  ('Cadeira extensora unilateral', 'I',       32, 4, 60, 'Cadência excêntrica'),
+  ('Cadeira extensora',            'C',       31, 3, 90, null),
+  ('Cadeira extensora unilateral', 'I',       32, 4, 90, 'Cadência excêntrica'),
   ('Búlgaro',                      'C',       41, 3, 90, null),
   ('Afundo isométrico',            'I',       42, 3, 90, null),
-  ('Elevação pélvica',             null::text,50, 3, 60, null),
-  ('Abdutora',                     null,      60, 3, 45, null),
-  ('Adutora',                      'I',       62, 3, 45, 'Bi-set com a abdutora'),
-  ('Panturrilha',                  'C',       71, 4, 45, null),
-  ('Panturrilha',                  'I',       72, 5, 45, null)
+  ('Elevação pélvica',             null::text,50, 3, 90, null),
+  ('Abdutora',                     null,      60, 3, 90, null),
+  ('Adutora',                      'I',       62, 3, 90, 'Bi-set com a abdutora'),
+  ('Panturrilha',                  'C',       71, 4, 90, null),
+  ('Panturrilha',                  'I',       72, 5, 90, null)
 ) as x(nome, quem, ordem, series, descanso, obs)
 join exercicios e on e.nome = x.nome;
 
@@ -159,16 +158,16 @@ select 'aaaa0002-0000-4000-8000-000000000002', e.id,
 from (values
   ('Desenvolvimento com halter',        null::text, 10, 3, 90, null::text),
   ('Puxada alta pegada neutra',         'C',        21, 2, 90, null),
-  ('Elevação lateral com halter',       'I',        22, 3, 45, null),
-  ('Remada fechada máquina',            'C',        31, 2, 60, null),
-  ('Fly',                               'I',        32, 4, 60, null),
-  ('Elevação lateral com halter',       'C',        41, 3, 45, null),
-  ('Supino vertical máquina',           'I',        42, 3, 60, null),
-  ('Fly inverso',                       'C',        51, 2, 45, null),
+  ('Elevação lateral com halter',       'I',        22, 3, 90, null),
+  ('Remada fechada máquina',            'C',        31, 2, 90, null),
+  ('Fly',                               'I',        32, 4, 90, null),
+  ('Elevação lateral com halter',       'C',        41, 3, 90, null),
+  ('Supino vertical máquina',           'I',        42, 3, 90, null),
+  ('Fly inverso',                       'C',        51, 2, 90, null),
   ('Puxada alta pegada neutra',         'I',        52, 3, 90, null),
-  ('Tríceps polia barra V',             null,       60, 4, 45, null),
-  ('Tríceps testa unilateral na polia', 'C',        71, 3, 45, null),
-  ('Tríceps testa unilateral na polia', 'I',        72, 4, 45, null)
+  ('Tríceps polia barra V',             null,       60, 4, 90, null),
+  ('Tríceps testa unilateral na polia', 'C',        71, 3, 90, null),
+  ('Tríceps testa unilateral na polia', 'I',        72, 4, 90, null)
 ) as x(nome, quem, ordem, series, descanso, obs)
 join exercicios e on e.nome = x.nome;
 
@@ -180,15 +179,15 @@ select 'aaaa0003-0000-4000-8000-000000000003', e.id,
        x.ordem, x.series, x.descanso, x.obs
 from (values
   ('Levantamento terra sumô',     null::text, 10, 3, 90, null::text),
-  ('Flexora unilateral',          'C',        21, 3, 60, null),
-  ('Flexora unilateral',          'I',        22, 4, 60, null),
-  ('Cadeira flexora',             'C',        31, 3, 60, null),
-  ('Cadeira flexora unilateral',  'I',        32, 3, 60, null),
-  ('Mesa flexora',                'C',        41, 3, 60, null),
-  ('Mesa flexora',                'I',        42, 2, 60, null),
-  ('Abdutora',                    null,       50, 3, 45, null),
-  ('Adutora',                     'I',        62, 3, 45, null),
-  ('Panturrilha',                 'I',        72, 5, 45, null)
+  ('Flexora unilateral',          'C',        21, 3, 90, null),
+  ('Flexora unilateral',          'I',        22, 4, 90, null),
+  ('Cadeira flexora',             'C',        31, 3, 90, null),
+  ('Cadeira flexora unilateral',  'I',        32, 3, 90, null),
+  ('Mesa flexora',                'C',        41, 3, 90, null),
+  ('Mesa flexora',                'I',        42, 2, 90, null),
+  ('Abdutora',                    null,       50, 3, 90, null),
+  ('Adutora',                     'I',        62, 3, 90, null),
+  ('Panturrilha',                 'I',        72, 5, 90, null)
 ) as x(nome, quem, ordem, series, descanso, obs)
 join exercicios e on e.nome = x.nome;
 
@@ -199,15 +198,15 @@ select 'aaaa0004-0000-4000-8000-000000000004', e.id,
                    when 'I' then (select id from perfis where nome = 'Igor Hollanda') end,
        x.ordem, x.series, x.descanso, x.obs
 from (values
-  ('Remada fechada máquina',       null::text, 10, 3, 60, null::text),
+  ('Remada fechada máquina',       null::text, 10, 3, 90, null::text),
   ('Puxada alta aberta',           null,       20, 3, 90, null),
-  ('Remada unilateral com halter', null,       30, 3, 60, null),
-  ('Fly inverso',                  null,       40, 3, 45, null),
-  ('Pull down',                    'C',        51, 2, 45, 'Bi-set com a rosca Scott'),
-  ('Pull down',                    'I',        52, 3, 45, 'Bi-set com a rosca Scott'),
-  ('Rosca Scott máquina',          null,       55, 4, 45, 'Bi-set com o pull down'),
-  ('Rosca direta com barra',       'C',        61, 3, 45, null),
-  ('Rosca direta com barra',       'I',        62, 4, 45, null)
+  ('Remada unilateral com halter', null,       30, 3, 90, null),
+  ('Fly inverso',                  null,       40, 3, 90, null),
+  ('Pull down',                    'C',        51, 2, 90, 'Bi-set com a rosca Scott'),
+  ('Pull down',                    'I',        52, 3, 90, 'Bi-set com a rosca Scott'),
+  ('Rosca Scott máquina',          null,       55, 4, 90, 'Bi-set com o pull down'),
+  ('Rosca direta com barra',       'C',        61, 3, 90, null),
+  ('Rosca direta com barra',       'I',        62, 4, 90, null)
 ) as x(nome, quem, ordem, series, descanso, obs)
 join exercicios e on e.nome = x.nome;
 
@@ -215,14 +214,14 @@ join exercicios e on e.nome = x.nome;
 insert into treino_exercicios (treino_id, exercicio_id, perfil_id, ordem, series, descanso_seg, observacao)
 select 'aaaa0005-0000-4000-8000-000000000005', e.id, null, x.ordem, x.series, x.descanso, x.obs
 from (values
-  ('Cadeira extensora',           10, 3, 60, null::text),
-  ('Elevação pélvica',            20, 3, 60, null),
+  ('Cadeira extensora',           10, 3, 90, null::text),
+  ('Elevação pélvica',            20, 3, 90, null),
   ('Leg horizontal',              30, 3, 90, null),
-  ('Abdutora',                    40, 3, 45, null),
-  ('Cadeira flexora',             50, 3, 60, null),
+  ('Abdutora',                    40, 3, 90, null),
+  ('Cadeira flexora',             50, 3, 90, null),
   ('Desenvolvimento com halter',  60, 3, 90, null),
-  ('Elevação lateral com halter', 70, 3, 45, null),
-  ('Tríceps polia barra V',       80, 3, 45, null)
+  ('Elevação lateral com halter', 70, 3, 90, null),
+  ('Tríceps polia barra V',       80, 3, 90, null)
 ) as x(nome, ordem, series, descanso, obs)
 join exercicios e on e.nome = x.nome;
 
@@ -231,12 +230,12 @@ insert into treino_exercicios (treino_id, exercicio_id, perfil_id, ordem, series
 select 'aaaa0006-0000-4000-8000-000000000006', e.id, null, x.ordem, x.series, x.descanso, x.obs
 from (values
   ('Supino inclinado com halter',       10, 3, 90, null::text),
-  ('Fly',                               20, 3, 60, 'Drop set na última série'),
-  ('Supino vertical máquina',           30, 3, 60, null),
-  ('Desenvolvimento aberto máquina',    40, 3, 60, null),
-  ('Elevação lateral na polia',         50, 3, 45, null),
-  ('Tríceps polia barra V',             60, 4, 45, null),
-  ('Tríceps testa unilateral na polia', 70, 3, 45, null)
+  ('Fly',                               20, 3, 90, 'Drop set na última série'),
+  ('Supino vertical máquina',           30, 3, 90, null),
+  ('Desenvolvimento aberto máquina',    40, 3, 90, null),
+  ('Elevação lateral na polia',         50, 3, 90, null),
+  ('Tríceps polia barra V',             60, 4, 90, null),
+  ('Tríceps testa unilateral na polia', 70, 3, 90, null)
 ) as x(nome, ordem, series, descanso, obs)
 join exercicios e on e.nome = x.nome;
 

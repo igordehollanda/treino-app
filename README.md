@@ -102,6 +102,11 @@ dois aprendidos doendo:
 
 Por isso, aberto pelo ícone, a tela de login mostra só a senha.
 
+### Descanso é 90s em tudo
+
+A prescrição usa 90 segundos uniformemente. O app permite ajustar
+exercício por exercício no editor, e exercício novo nasce com 90.
+
 ### Bi-set
 
 `treino_exercicios.grupo`: mesmo número no mesmo treino = executados
