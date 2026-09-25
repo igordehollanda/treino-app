@@ -6,7 +6,8 @@
  */
 
 import type {
-  Medida, PlanoAlimentar, PlanoRefeicao, RefeicaoRegistro, TipoDia,
+  Medida, MetasNutricionais, PlanoAlimentar, PlanoRefeicao, RefeicaoRegistro,
+  TipoDia,
 } from './tipos'
 
 /**
@@ -25,7 +26,7 @@ export function tipoDoDia(
 ): TipoDia {
   if (medida?.tipo_dia) return medida.tipo_dia
   if (plano?.atividade_jiu_jitsu_id && atividadeRegistradaNoDia) return 'jiu_jitsu'
-  if (plano?.dias_jiu_jitsu?.includes(dia.getDay())) return 'jiu_jitsu'
+  if (plano?.dias_jiu_jitsu.includes(dia.getDay())) return 'jiu_jitsu'
   return 'normal'
 }
 
@@ -155,19 +156,12 @@ export function serieDePeso(
 }
 
 /** A meta que vale hoje, conforme o tipo do dia. */
-export function metaDoDia(
-  metas: {
-    kcal_normal: number | null; kcal_jiu_jitsu: number | null
-    proteina_normal_g: number | null; proteina_jiu_jitsu_g: number | null
-    agua_normal_ml: number | null; agua_jiu_jitsu_ml: number | null
-  } | null,
-  tipo: TipoDia,
-) {
+export function metaDoDia(metas: MetasNutricionais | null, tipo: TipoDia) {
   if (!metas) return { kcal: null, proteina_g: null, agua_ml: null }
   const jj = tipo === 'jiu_jitsu'
   return {
     kcal: jj ? metas.kcal_jiu_jitsu : metas.kcal_normal,
-    proteina_g: jj ? metas.proteina_jiu_jitsu_g : metas.proteina_normal_g,
-    agua_ml: jj ? metas.agua_jiu_jitsu_ml : metas.agua_normal_ml,
+    proteina_g: jj ? metas.proteina_g_jiu_jitsu : metas.proteina_g_normal,
+    agua_ml: jj ? metas.agua_ml_jiu_jitsu : metas.agua_ml_normal,
   }
 }

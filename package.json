@@ -7,7 +7,8 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "preview": "vite preview",
-    "typecheck": "tsc -b --noEmit"
+    "typecheck": "tsc -b --noEmit",
+    "teste": "esbuild src/lib/nutricao.ts --format=esm --outfile=node_modules/.tmp/regras.mjs --log-level=warning && node testes/regras-nutricao.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.58.0",

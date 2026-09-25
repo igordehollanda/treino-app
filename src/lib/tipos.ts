@@ -129,20 +129,27 @@ export type TreinoCompleto = Treino & {
 }
 
 // --- nutricao ---------------------------------------------------------
-// Nomes seguem a especificacao do modulo; conferir contra 0009 quando ela
-// chegar.
+// Conferido contra 0009_nutricao.sql coluna a coluna.
 
 export type TipoDia = 'normal' | 'jiu_jitsu'
 export type TipoDiaRefeicao = TipoDia | 'ambos'
 export type OrigemOpcao = 'nutricionista' | 'ajuste' | 'generico'
 export type EstadoRefeicao = 'cumprida' | 'parcial' | 'fora_do_plano' | 'pulada'
 
+/** Um item da opcao. `qtd` nula e a salada "a vontade". */
+export type ItemAlimento = {
+  alimento: string
+  qtd: number | null
+  unidade: string
+}
+
 export type PlanoAlimentar = {
   id: string
   perfil_id: string
+  nome: string
   ativo: boolean
-  /** getDay() do JS: 0 = domingo. */
-  dias_jiu_jitsu: number[] | null
+  /** getDay() do JS: 0 = domingo. Nunca nulo; vazio quando nao ha dia fixo. */
+  dias_jiu_jitsu: number[]
   atividade_jiu_jitsu_id: string | null
 }
 
@@ -150,7 +157,8 @@ export type PlanoRefeicao = {
   id: string
   plano_id: string
   nome: string
-  horario: string | null
+  /** 'HH:MM:SS' — a coluna e time not null. */
+  horario: string
   tipo_dia: TipoDiaRefeicao
   ordem: number
   /** false = nao entra na aderencia. */
@@ -161,13 +169,32 @@ export type PlanoOpcao = {
   id: string
   refeicao_id: string
   rotulo: string
-  itens: unknown
+  ordem: number
+  padrao: boolean
+  itens: ItemAlimento[]
+  /** null = plano sem contagem, como o da Camila. */
   kcal: number | null
   proteina_g: number | null
   origem: OrigemOpcao
-  padrao: boolean
   nota: string | null
 }
+
+export type MetasNutricionais = {
+  perfil_id: string
+  peso_alvo_kg: number | null
+  data_alvo: string | null
+  checkpoints: CheckpointPeso[]
+  regra_corte: string | null
+  agua_ml_normal: number | null
+  agua_ml_jiu_jitsu: number | null
+  kcal_normal: number | null
+  kcal_jiu_jitsu: number | null
+  proteina_g_normal: number | null
+  proteina_g_jiu_jitsu: number | null
+}
+
+/** Faixa de peso esperada numa data, para o grafico marcar o alvo. */
+export type CheckpointPeso = { dia: string; min: number; max: number }
 
 export type RefeicaoRegistro = {
   id: string
@@ -183,7 +210,8 @@ export type RefeicaoRegistro = {
   /** null = sem estimativa, que nao e zero. */
   kcal: number | null
   proteina_g: number | null
-  observacao: string | null
+  /** O que foi comido, quando fugiu do plano ou faltou opcao. */
+  descricao: string | null
 }
 
 export type Medida = {
@@ -195,7 +223,9 @@ export type Medida = {
   agua_ml: number | null
   /** null = nao informado; 0 = nao bebeu. */
   alcool_doses: number | null
+  /** Refere-se a noite ANTERIOR a este dia. */
   dormiu_no_horario: boolean | null
   /** Escolha manual do dia; vence o dia da semana e a atividade. */
   tipo_dia: TipoDia | null
+  nota: string | null
 }
