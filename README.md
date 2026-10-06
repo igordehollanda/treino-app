@@ -126,6 +126,27 @@ treino faria o app anunciar "0 séries" e misturaria, no calendário, duas
 leituras diferentes: constância de musculação e constância de atividade extra.
 Por isso `atividades` + `atividade_registros`, com registro binário por dia.
 
+### Treino esquecido se registra depois, no dia dele
+
+Dá para esquecer de apertar "iniciar" e treinar assim mesmo. No Histórico, tocar
+num dia passado oferece os treinos do aluno por letra; um toque cria a sessão
+**já finalizada** — não há o que continuar, o treino acabou. As cargas são um
+segundo passo opcional, por "anotar as cargas", que abre a mesma sessão na tela
+de execução.
+
+A sessão é ancorada ao **meio-dia local** do dia escolhido. Meio-dia atravessa
+fuso e horário de verão sem escorregar de dia; meia-noite, não.
+
+E registrar o treino apaga a falta do mesmo dia: um dia não é as duas coisas.
+
+### `registrada_em` é quando a série foi feita, não quando foi digitada
+
+A progressão de carga agrupa por `series_registros.registrada_em`. Numa sessão
+do dia, "agora" e "o dia do treino" são a mesma coisa. Numa sessão registrada
+depois, não — e sem distinguir as duas, a carga de segunda apareceria no
+gráfico na data de hoje. Por isso a série datada herda o dia da sessão sempre
+que ele não for hoje.
+
 ### Falta é um registro, não ausência de registro
 
 Dia em branco é ambíguo: pode ser falta ou esquecimento de anotar. `faltas`
@@ -274,7 +295,10 @@ src/
   componentes/      Layout, GraficoCarga, GraficoPeso, SeletorExercicio,
                     CartaoAlimentacao
 testes/
-  regras-nutricao.mjs   18 asserts sobre src/lib/nutricao.ts (npm run teste)
+  regras-nutricao.mjs       18 asserts sobre src/lib/nutricao.ts (npm run teste)
+  tela-nutricao.mjs         42 verificações do módulo de nutrição
+  tela-treino-retroativo.mjs 23 verificações do treino registrado depois
+  contraste.mjs             mede contraste AA no que está renderizado
 supabase/
   migrations/       0001 a 0010, rodar em ordem
   treinos_camila_igor.sql          os treinos reais (dados, não schema)
@@ -327,7 +351,17 @@ npm run build && npx vite preview --port 4191 &
 PLAYWRIGHT=$(npm root -g)/playwright/index.mjs node testes/tela-nutricao.mjs
 ```
 
-São 42 verificações num Chromium headless a 390×840, com as respostas do
+Há um segundo, para o treino registrado depois do fato:
+
+```bash
+PLAYWRIGHT=$(npm root -g)/playwright/index.mjs node testes/tela-treino-retroativo.mjs
+```
+
+Esse fixa o fuso em `America/Sao_Paulo` e checa as datas convertendo para lá
+explicitamente, em vez de confiar no fuso de quem roda — é em UTC-3 que
+"meio-dia local" vira 15:00Z, e é aí que bug de data aparece.
+
+O primeiro são 42 verificações num Chromium headless a 390×840, com as respostas do
 Supabase simuladas por `page.route` e o relógio congelado antes do app rodar
 (quase tudo ali depende de que dia da semana é hoje): o dia de jiu-jitsu pelas
 três vias, o ✓ sem rede entrando na fila e subindo uma vez só, a troca de

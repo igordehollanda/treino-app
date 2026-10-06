@@ -7,6 +7,7 @@ import {
   buscarTreinos, buscarUltimasCargas, cargasEmCache, criarExercicio, descartarSessao,
   finalizarSessao, registrarSerie, semanaEmCache, sessaoLocal, treinosEmCache,
 } from '../lib/db'
+import { chaveDia } from '../lib/datas'
 import { repsDoDia } from '../lib/periodizacao'
 import { linkDeExecucao } from '../lib/execucao'
 import GraficoCarga from '../componentes/GraficoCarga'
@@ -201,10 +202,10 @@ export default function Execucao() {
         carga_kg: m.carga === '' ? null : Number(m.carga.replace(',', '.')),
         reps: m.reps === '' ? null : Number(m.reps),
         rir: m.rir,
-        registrada_em: new Date().toISOString(),
+        registrada_em: momentoDaSerie(sessao),
       })
     },
-    [perfil, sessaoId, resolver],
+    [perfil, sessaoId, resolver, sessao],
   )
 
   const alternar = useCallback(
@@ -901,6 +902,23 @@ function primeiroNumero(reps: string) {
 
 function dataCurta(iso: string) {
   return new Date(iso).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })
+}
+
+/**
+ * Quando a serie foi FEITA — nao quando a linha foi digitada.
+ *
+ * Numa sessao do dia as duas coisas sao a mesma. Numa sessao registrada
+ * depois, nao: a progressao agrupa por `registrada_em`, entao sem isto a
+ * carga de segunda-feira apareceria no grafico na data de hoje, e a
+ * evolucao de carga passaria a mentir.
+ */
+function momentoDaSerie(sessao: Sessao | null) {
+  const agora = new Date()
+  if (!sessao) return agora.toISOString()
+  const diaDaSessao = new Date(sessao.iniciada_em)
+  if (chaveDia(diaDaSessao) === chaveDia(agora)) return agora.toISOString()
+  diaDaSessao.setHours(12, 0, 0, 0)
+  return diaDaSessao.toISOString()
 }
 
 function vibrar(padrao: number[]) {

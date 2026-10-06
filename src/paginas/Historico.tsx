@@ -1,21 +1,25 @@
 import { useEffect, useMemo, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../lib/auth'
 import {
   buscarAtividades, buscarExercicios, buscarFaltas, buscarPerfis, buscarProgressao,
-  buscarRegistrosDeAtividade, buscarSessoes, desmarcarFalta, marcarAtividade, marcarFalta,
-  perfisEmCache,
+  buscarRegistrosDeAtividade, buscarSessoes, buscarTreinos, descartarSessao, desmarcarFalta,
+  marcarAtividade, marcarFalta, perfisEmCache, registrarTreinoFeito, treinosEmCache,
 } from '../lib/db'
 import { chaveDia } from '../lib/datas'
 import GraficoCarga from '../componentes/GraficoCarga'
 import type {
   Atividade, AtividadeRegistro, Exercicio, Falta, Perfil, PontoProgressao, Sessao,
+  TreinoCompleto,
 } from '../lib/tipos'
 
 export default function Historico() {
   const { perfil, ehPersonal } = useAuth()
+  const navegar = useNavigate()
   const [perfis, setPerfis] = useState<Perfil[]>(perfisEmCache())
   const [vendo, setVendo] = useState<string>(perfil?.id ?? '')
   const [sessoes, setSessoes] = useState<Sessao[]>([])
+  const [treinos, setTreinos] = useState<TreinoCompleto[]>(treinosEmCache())
   const [atividades, setAtividades] = useState<Atividade[]>([])
   const [extras, setExtras] = useState<AtividadeRegistro[]>([])
   const [faltas, setFaltas] = useState<Falta[]>([])
@@ -36,6 +40,7 @@ export default function Historico() {
   useEffect(() => {
     void buscarPerfis().then(setPerfis).catch(console.error)
     void buscarExercicios().then(setExercicios).catch(console.error)
+    void buscarTreinos().then(setTreinos).catch(console.error)
   }, [])
 
   useEffect(() => {
@@ -115,8 +120,53 @@ export default function Historico() {
     }
   }
 
+  /**
+   * Treino que a pessoa fez e esqueceu de iniciar no app.
+   *
+   * Nasce finalizado: nao ha o que continuar, o treino acabou. As cargas
+   * entram depois, por "anotar as cargas", que abre esta mesma sessao.
+   */
+  async function registrarTreino(treino: TreinoCompleto, dia: Date) {
+    if (!perfil || vendo !== perfil.id) {
+      setErro('só dá para editar o seu próprio histórico')
+      return
+    }
+    setErro(null)
+    try {
+      const nova = await registrarTreinoFeito(perfil.id, treino, dia)
+      setSessoes((ss) => [nova, ...ss])
+      // Um dia nao pode ser treino e falta ao mesmo tempo.
+      const chave = chaveDia(dia)
+      if (faltas.some((f) => f.dia === chave)) {
+        setFaltas((fs) => fs.filter((f) => f.dia !== chave))
+        await desmarcarFalta(perfil.id, chave).catch(console.error)
+      }
+    } catch (e) {
+      setErro(mensagem(e))
+    }
+  }
+
+  async function apagarTreino(sessao: Sessao) {
+    if (!perfil || vendo !== perfil.id) return
+    if (!confirm(`Apagar "${sessao.treino_nome}" deste dia? As cargas dele vão junto.`)) return
+    setErro(null)
+    setSessoes((ss) => ss.filter((s) => s.id !== sessao.id))
+    try {
+      await descartarSessao(sessao.id)
+    } catch (e) {
+      setErro(mensagem(e))
+      await buscarSessoes(perfil.id, new Date(Date.now() - 400 * 864e5))
+        .then(setSessoes)
+        .catch(console.error)
+    }
+  }
+
   const alunos = perfis.filter((p) => p.papel === 'aluno')
   const sequencia = useMemo(() => calculaSequencia(sessoes), [sessoes])
+  const meusTreinos = useMemo(
+    () => treinos.filter((t) => t.ativo && t.alunos.includes(vendo)),
+    [treinos, vendo],
+  )
 
   return (
     <div className="mx-auto max-w-lg p-5 md:max-w-3xl">
@@ -163,10 +213,16 @@ export default function Historico() {
             dia={diaAberto}
             atividades={atividades}
             extras={extras}
-            treinou={sessoes.some((x) => x.iniciada_em.slice(0, 10) === chaveDia(diaAberto))}
+            sessoesDoDia={sessoes.filter(
+              (s) => chaveDia(new Date(s.iniciada_em)) === chaveDia(diaAberto),
+            )}
+            treinos={meusTreinos}
             faltou={faltas.some((f) => f.dia === chaveDia(diaAberto))}
             aoAlternarAtividade={(id) => void alternarAtividade(id, diaAberto)}
             aoAlternarFalta={() => void alternarFalta(diaAberto)}
+            aoRegistrarTreino={(t) => void registrarTreino(t, diaAberto)}
+            aoApagarTreino={(s) => void apagarTreino(s)}
+            aoAnotarCargas={(s) => navegar(`/executar/${s.id}`)}
             erro={erro}
             aoFechar={() => {
               setDiaAberto(null)
@@ -198,7 +254,8 @@ export default function Historico() {
       {sessoes.length === 0 && (
         <p className="mt-4 text-center text-sm text-fraco">
           Nenhum treino registrado ainda. Assim que você finalizar o primeiro, os dias
-          acendem no calendário com a letra do treino.
+          acendem no calendário com a letra do treino. Treinou e esqueceu de iniciar? Toque
+          no dia acima.
         </p>
       )}
     </div>
@@ -327,6 +384,9 @@ function Calendario({
             <Celula
               key={dia}
               onClick={podeAbrir ? () => aoAbrirDia(data) : undefined}
+              // Sem isto a celula se anuncia so como "5" — e, depois de
+              // acender, como "5 B". O estado do dia vai junto do numero.
+              aria-label={podeAbrir ? rotuloDoDia(data, letra, marcas, falta) : undefined}
               title={falta ? `Falta${motivo ? `: ${motivo}` : ''}` : undefined}
               className={`relative flex aspect-square flex-col items-center justify-center rounded-lg ${
                 aberto ? 'ring-2 ring-acento ring-offset-2 ring-offset-superficie ' : ''
@@ -366,7 +426,8 @@ function Calendario({
 
       {editavel && (
         <p className="mt-3 text-xs text-fraco">
-          Toque num dia para marcar um extra que você esqueceu, ou uma falta.
+          Toque num dia para registrar um treino que você fez e esqueceu de iniciar, um extra,
+          ou uma falta.
         </p>
       )}
     </div>
@@ -390,21 +451,27 @@ function mensagem(e: unknown) {
  * a meta semanal passa a mentir.
  */
 function PainelDoDia({
-  dia, atividades, extras, treinou, faltou,
-  aoAlternarAtividade, aoAlternarFalta, erro, aoFechar,
+  dia, atividades, extras, sessoesDoDia, treinos, faltou,
+  aoAlternarAtividade, aoAlternarFalta, aoRegistrarTreino, aoApagarTreino,
+  aoAnotarCargas, erro, aoFechar,
 }: {
   dia: Date
   atividades: Atividade[]
   extras: AtividadeRegistro[]
-  treinou: boolean
+  sessoesDoDia: Sessao[]
+  treinos: TreinoCompleto[]
   faltou: boolean
   aoAlternarAtividade: (id: string) => void
   aoAlternarFalta: () => void
+  aoRegistrarTreino: (t: TreinoCompleto) => void
+  aoApagarTreino: (s: Sessao) => void
+  aoAnotarCargas: (s: Sessao) => void
   erro: string | null
   aoFechar: () => void
 }) {
   const chave = chaveDia(dia)
   const feito = (id: string) => extras.some((r) => r.atividade_id === id && r.dia === chave)
+  const treinou = sessoesDoDia.length > 0
 
   return (
     <div className="mt-4 rounded-xl border border-acento/40 bg-elevado p-3">
@@ -417,14 +484,51 @@ function PainelDoDia({
         </button>
       </div>
 
-      {treinou && (
-        <p className="mb-2 text-xs text-feito">Treino registrado neste dia.</p>
-      )}
-
       {erro && (
         <p className="mb-2 rounded-lg border border-erro/30 bg-erro/10 px-3 py-2 text-xs text-erro">
           Não consegui gravar: {erro}
         </p>
+      )}
+
+      {/* Treino do dia. Registrado aqui, ele ja nasce concluido — as
+          cargas sao um segundo passo, opcional. */}
+      {sessoesDoDia.map((s) => (
+        <div key={s.id} className="mb-1.5 rounded-lg border border-feito/40 bg-feito/10 px-3 py-2.5">
+          <p className="truncate text-sm font-semibold">{s.treino_nome}</p>
+          <div className="mt-1 flex gap-4">
+            <button
+              onClick={() => aoAnotarCargas(s)}
+              className="text-xs text-acento-texto underline"
+            >
+              anotar as cargas
+            </button>
+            <button onClick={() => aoApagarTreino(s)} className="text-xs text-suave underline">
+              apagar
+            </button>
+          </div>
+        </div>
+      ))}
+
+      {!treinou && treinos.length > 0 && (
+        <div className="mb-2">
+          <p className="rotulo mb-1.5">Fiz um treino neste dia</p>
+          <div className="flex flex-wrap gap-1.5">
+            {treinos.map((t) => (
+              <button
+                key={t.id}
+                onClick={() => aoRegistrarTreino(t)}
+                aria-label={t.nome}
+                title={t.nome}
+                className="h-12 min-w-12 flex-1 rounded-lg border border-borda text-base font-extrabold active:bg-superficie"
+              >
+                {letraDoTreino(t.nome)}
+              </button>
+            ))}
+          </div>
+          <p className="mt-1 text-[11px] text-fraco">
+            A letra do treino, como aparece no calendário. As cargas entram depois.
+          </p>
+        </div>
       )}
 
       {atividades.length === 0 && (
@@ -455,6 +559,23 @@ function PainelDoDia({
       </div>
     </div>
   )
+}
+
+/** Mesma regra do calendario, para a letra do botao bater com a da celula. */
+function letraDoTreino(nome: string) {
+  return nome.trim()[0] ?? '✓'
+}
+
+/** "5 de outubro, treino A e 1 extra" — o que a celula diz em voz alta. */
+function rotuloDoDia(
+  data: Date, letra: string | undefined, marcas: string[] | undefined, falta: boolean,
+) {
+  const dia = data.toLocaleDateString('pt-BR', { day: 'numeric', month: 'long' })
+  const partes: string[] = []
+  if (letra) partes.push(`treino ${letra}`)
+  if (marcas?.length) partes.push(`${marcas.length} extra${marcas.length > 1 ? 's' : ''}`)
+  if (falta) partes.push('falta')
+  return partes.length === 0 ? `${dia}, sem registro` : `${dia}, ${partes.join(' e ')}`
 }
 
 function Alternador({

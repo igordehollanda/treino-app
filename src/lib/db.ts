@@ -44,14 +44,23 @@ function sessoesLocais(): Record<string, Sessao> {
   }
 }
 
+/** Quantas sessoes o cache local guarda. Vinte cobre semanas de treino. */
+const LIMITE_LOCAL = 20
+
 export function guardarSessaoLocal(sessao: Sessao) {
   const todas = sessoesLocais()
+  // Reinsere no fim: a chave volta para o final da ordem do objeto, e a
+  // sessao mexida por ultimo e a ultima a ser descartada.
+  delete todas[sessao.id]
   todas[sessao.id] = sessao
-  // Guarda pouca coisa: sessao fechada ha mais de 2 dias ja subiu.
-  const limite = Date.now() - 2 * 864e5
-  for (const [id, s] of Object.entries(todas)) {
-    if (s.finalizada_em && new Date(s.finalizada_em).getTime() < limite) delete todas[id]
-  }
+
+  // A poda e por QUANTIDADE, nao pela data de fim da sessao. Por data,
+  // uma sessao registrada hoje para um treino de duas semanas atras ja
+  // nascia velha e era apagada nesta mesma chamada — e ai a tela de
+  // execucao nao encontrava a sessao que acabara de ser criada.
+  const ids = Object.keys(todas)
+  for (const id of ids.slice(0, Math.max(0, ids.length - LIMITE_LOCAL))) delete todas[id]
+
   try {
     localStorage.setItem(CHAVE_SESSOES, JSON.stringify(todas))
   } catch {
@@ -416,6 +425,39 @@ export async function iniciarSessao(
     treino_nome: treinoNome,
     iniciada_em: new Date().toISOString(),
     finalizada_em: null,
+    observacao: null,
+  }
+  guardarSessaoLocal(sessao)
+  await enfileirar({ tabela: 'sessoes', dados: sessao, conflito: 'id' })
+  return sessao
+}
+
+/**
+ * Treino que voce FEZ mas esqueceu de iniciar no app.
+ *
+ * Nasce ja finalizada, porque nao ha o que continuar: o treino acabou.
+ * As cargas entram depois, abrindo esta sessao na tela de execucao — e
+ * la elas sao datadas pelo dia da sessao, nao pelo dia em que foram
+ * digitadas.
+ *
+ * Meio-dia local nas duas pontas: o que importa e a data, e o meio-dia
+ * atravessa fuso e horario de verao sem escorregar de dia.
+ */
+export async function registrarTreinoFeito(
+  perfilId: string, treino: { id: string; nome: string }, dia: Date,
+): Promise<Sessao> {
+  const inicio = new Date(dia)
+  inicio.setHours(12, 0, 0, 0)
+  const fim = new Date(inicio)
+  fim.setHours(13, 0, 0, 0)
+
+  const sessao: Sessao = {
+    id: crypto.randomUUID(),
+    perfil_id: perfilId,
+    treino_id: treino.id,
+    treino_nome: treino.nome,
+    iniciada_em: inicio.toISOString(),
+    finalizada_em: fim.toISOString(),
     observacao: null,
   }
   guardarSessaoLocal(sessao)
